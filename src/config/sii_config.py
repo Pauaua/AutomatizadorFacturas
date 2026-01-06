@@ -1,0 +1,72 @@
+"""
+Configuración para el módulo SII
+"""
+
+# Configuración de URLs del SII
+SII_URLS = {
+    'portal': 'https://misiir.sii.cl/cgi_misii/siihome.cgi',
+    'login': 'https://zeusr.sii.cl//AUT2000/InicioAutenticacion/IngresoRutClave.html?https://misiir.sii.cl/cgi_misii/siihome.cgi',
+    'facturas': 'https://www4.sii.cl/consdcvinternetui/#/index',
+    'compras': 'https://www4.sii.cl/consdcgi/STC/stc0001i',
+}
+
+# Selectores para elementos del SII
+SII_SELECTORS = {
+    'boton_ingresar': [
+        "//a[contains(text(), 'Ingresar a Mi SII')]",
+        "//a[contains(@href, 'siiautenticacion')]",
+    ],
+    'campo_rut': [
+        (By.ID, "rut"),
+        (By.NAME, "rut"),
+    ],
+    'campo_clave': [
+        (By.ID, "clave"),
+        (By.NAME, "clave"),
+    ],
+    'campo_dv': [
+        (By.ID, "dv"),
+        (By.NAME, "dv"),
+    ],
+    'boton_login': [
+        (By.ID, "bt_ingresar"),
+        (By.NAME, "bt_ingresar"),
+    ],
+    'facturas_pendientes': [
+        "//*[contains(text(), 'Pendientes')]",
+        "//*[contains(@class, 'pendiente')]",
+    ],
+    'boton_aceptar': [
+        "//button[contains(text(), 'Aceptar')]",
+        "//button[contains(@class, 'aceptar')]",
+    ],
+    'menu_facturas': [
+        "//a[contains(text(), 'Factura Electrónica')]",
+        "//a[contains(@href, 'factura')]",
+        "//li[contains(text(), 'Factura')]/a",
+    ],
+    'link_registro_compras': [
+        "//a[contains(text(), 'Registro de Compras y Ventas')]",
+        "//a[contains(@href, 'consdcvinternetui')]",
+    ],
+    'elemento_post_login': [
+        (By.ID, "user-info"),
+        (By.CLASS_NAME, "welcome-user"),
+        "//*[contains(text(), 'Bienvenido')]",
+    ],
+}
+
+# Configuración de tiempos de espera (segundos)
+TIMEOUTS = {
+    'page_load': 10,
+    'element_wait': 15,
+    'login_wait': 5,
+    'action_delay': 2,
+}
+
+# Patrones para identificar facturas
+FACTURA_PATTERNS = {
+    'texto': ['factura', 'dte', 'documento', 'comprobante'],
+    'estado': ['pendiente', 'por aceptar', 'validar', 'revisar'],
+    'clases': ['fila-factura', 'item-dte', 'documento-item'],
+}
