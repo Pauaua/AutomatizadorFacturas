@@ -1,5 +1,5 @@
 """
-Módulo para automatizar la aceptación de facturas en el SII
+Módulo para automatizar la aceptación de facturas en el SII - VERSION MEJORADA PARA PESTAÑAS DINÁMICAS
 """
 import time
 import json
@@ -13,37 +13,29 @@ from webdriver_manager.chrome import ChromeDriverManager
 from PyQt5.QtCore import QThread, pyqtSignal
 from selenium.webdriver.common.keys import Keys
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 # ================= CONFIGURACIÓN ACTUALIZADA DEL SII =================
 SII_URLS = {
     'portal': 'https://misiir.sii.cl/cgi_misii/siihome.cgi',
     'login': 'https://zeusr.sii.cl//AUT2000/InicioAutenticacion/IngresoRutClave.html?https://misiir.sii.cl/cgi_misii/siihome.cgi',
+    'servicios_online': 'https://www.sii.cl/servicios_online/1042-.html',
+    'registro_compras': 'https://www.sii.cl/servicios_online/1042-3253.html',
     'facturas': 'https://www4.sii.cl/consdcvinternetui/#/index',
-    'compras': 'https://www4.sii.cl/consdcgi/STC/stc0001i',
 }
 
-# Selectores actualizados para la nueva página de login
 SII_SELECTORS = {
-    'boton_ingresar': [
-        "//a[contains(text(), 'Ingresar a Mi SII')]",
-        "//a[contains(@href, 'AUT2000')]",
-        "//button[contains(text(), 'Ingresar')]",
-    ],
     'campo_rut': [
         (By.ID, "rutcntr"),
         (By.NAME, "rutcntr"),
         (By.ID, "rut"),
         (By.NAME, "rut"),
-        (By.XPATH, "//input[@type='text' and contains(@id, 'rut')]"),
-        (By.XPATH, "//input[@type='text' and contains(@name, 'rut')]"),
     ],
     'campo_clave': [
         (By.ID, "clave"),
         (By.NAME, "clave"),
         (By.XPATH, "//input[@type='password']"),
-        (By.XPATH, "//input[contains(@id, 'clave')]"),
     ],
     'campo_dv': [
         (By.ID, "dvcntr"),
@@ -54,35 +46,165 @@ SII_SELECTORS = {
     'boton_login': [
         (By.ID, "bt_ingresar"),
         (By.NAME, "bt_ingresar"),
-        (By.XPATH, "//input[@type='submit' and @value='Ingresar']"),
         (By.XPATH, "//button[@type='submit']"),
-        (By.XPATH, "//input[@type='submit']"),
     ],
-    'facturas_pendientes': [
-        "//*[contains(text(), 'Pendientes')]",
-        "//*[contains(@class, 'pendiente')]",
-        "//*[contains(text(), 'Pendiente')]",
+    'menu_servicios': [
+        (By.XPATH, "//a[contains(., 'Servicios Online')]"),
+        (By.XPATH, "//a[contains(@href, 'servicios_online')]"),
+        (By.XPATH, "//li[contains(., 'Servicios Online')]/a"),
+    ],
+    'impuestos_mensuales': [
+        (By.XPATH, "//a[contains(., 'Impuestos Mensuales')]"),
+        (By.XPATH, "//a[contains(@href, '1042-')]"),
+    ],
+    'registro_compras_ventas': [
+        (By.XPATH, "//a[contains(., 'Registro de Compras y Ventas')]"),
+        (By.XPATH, "//a[contains(@href, '1042-3253')]"),
+    ],
+    'ingresar_registro': [
+        (By.XPATH, "//a[contains(., 'Ingresar') and contains(@href, 'consdcvinternetui')]"),
+        (By.XPATH, "//button[contains(., 'Ingresar al Registro')]"),
+        (By.XPATH, "//a[contains(@href, 'consdcvinternetui')]"),
+    ],
+    'tab_compra': [
+        "//button[contains(., 'COMPRA')]",
+        "//a[contains(., 'COMPRA')]",
+        "//li[contains(., 'COMPRA')]",
+        "//button[contains(@class, 'tab') and contains(., 'COMPRA')]",
+    ],
+    'tab_venta': [
+        "//button[contains(., 'VENTA')]",
+        "//a[contains(., 'VENTA')]",
+        "//li[contains(., 'VENTA')]",
+    ],
+    # NUEVOS SELECTORES ESPECÍFICOS PARA PESTAÑAS DINÁMICAS
+    'tabs_principales': [
+        "//button[contains(., 'Pendientes') and not(contains(., 'Registro'))]",
+        "//a[contains(., 'Pendientes') and not(contains(., 'Registro'))]",
+        "//li[contains(., 'Pendientes') and not(contains(., 'Registro'))]",
+        "//span[contains(., 'Pendientes') and not(contains(., 'Registro'))]",
+        "//div[contains(@class, 'tab') and contains(., 'Pendientes')]",
+        "//button[text()='Pendientes' or text()=' PENDIENTES ']",
+    ],
+    'contenido_pendientes': [
+        "//div[contains(@class, 'pendientes') and contains(@class, 'active')]",
+        "//div[contains(@class, 'content') and contains(@class, 'pendientes')]",
+        "//div[contains(@id, 'pendientes') and contains(@class, 'show')]",
+        "//div[contains(@class, 'tab-content') and contains(., 'pendientes')]",
+        "//div[contains(@class, 'tabla') and contains(., 'pendientes')]",
     ],
     'boton_aceptar': [
-        "//button[contains(text(), 'Aceptar')]",
-        "//button[contains(@class, 'aceptar')]",
-        "//a[contains(text(), 'Aceptar')]",
-        "//input[@value='Aceptar']",
+        "//button[contains(., 'Aceptar')]",
+        "//button[contains(., 'aceptar')]",
+        "//a[contains(., 'Aceptar')]",
     ],
-    # AGREGAR ESTOS NUEVOS SELECTORES:
-    'menu_facturas': [
-        "//a[contains(text(), 'Factura Electrónica')]",
-        "//a[contains(@href, 'factura')]",
-        "//li[contains(text(), 'Factura')]/a",
+    'select_periodo': [
+        (By.ID, "periodo"),
+        (By.NAME, "periodo"),
+        (By.XPATH, "//select[contains(@id, 'periodo')]"),
+        (By.XPATH, "//select[contains(@name, 'ano')]"),
     ],
-    'link_registro_compras': [
-        "//a[contains(text(), 'Registro de Compras y Ventas')]",
-        "//a[contains(@href, 'consdcvinternetui')]",
+    'select_mes': [
+        (By.ID, "mes"),
+        (By.NAME, "mes"),
+        (By.XPATH, "//select[contains(@id, 'mes')]"),
+        (By.XPATH, "//select[contains(@name, 'mes')]"),
     ],
-    'elemento_post_login': [
-        (By.ID, "user-info"),
-        (By.CLASS_NAME, "welcome-user"),
-        "//*[contains(text(), 'Bienvenido')]",
+    'boton_consultar': [
+        "//button[contains(., 'Consultar')]",
+        "//input[@value='Consultar']",
+        "//button[contains(., 'Buscar')]",
+    ],
+    # NUEVOS SELECTORES PARA ACEPTACIÓN MASIVA
+    'checkbox_seleccionar_todo': [
+        "//input[@type='checkbox' and contains(@id, 'selectAll')]",
+        "//input[@type='checkbox' and contains(@name, 'selectAll')]",
+        "//input[@type='checkbox' and contains(@class, 'select-all')]",
+        "//th[contains(., 'Seleccionar')]//input[@type='checkbox']",
+        "//input[@type='checkbox' and contains(@id, 'checkall')]",
+        "//input[@type='checkbox' and contains(@name, 'checkall')]",
+        "//input[@type='checkbox' and contains(@class, 'check-all')]",
+    ],
+    'checkbox_factura_individual': [
+        "//input[@type='checkbox' and contains(@name, 'select')]",
+        "//input[@type='checkbox' and contains(@id, 'select')]",
+        "//input[@type='checkbox' and @value]",
+        "//td[contains(@class, 'selection')]//input[@type='checkbox']",
+        "//tr[contains(@class, 'row')]//input[@type='checkbox']",
+        "//tbody//input[@type='checkbox']",
+        "//input[@type='checkbox' and contains(@class, 'chk')]",
+    ],
+    'boton_aceptar_masivo': [
+        "//button[contains(., 'Aceptar Seleccionados')]",
+        "//button[contains(., 'Aceptar Masivo')]",
+        "//button[contains(., 'Aceptar Todas')]",
+        "//button[contains(., 'Acuso Recibo Masivo')]",
+        "//button[contains(., 'Procesar Seleccionados')]",
+        "//button[contains(., 'Aceptar Documentos')]",
+        "//button[contains(., 'Acusar Recibido')]",
+        "//button[contains(., 'Acuso Recibo')]",
+    ],
+    'confirmacion_aceptar_masivo': [
+        "//button[contains(., 'Sí, aceptar')]",
+        "//button[contains(., 'Confirmar')]",
+        "//button[contains(., 'Aceptar') and contains(@class, 'btn-primary')]",
+        "//button[contains(., 'Aceptar') and contains(@class, 'primary')]",
+        "//button[contains(., 'Continuar')]",
+        "//button[contains(., 'Cerrar')]",
+    ],
+    # NUEVOS SELECTORES PARA ENLACES DE TIPO DE DOCUMENTO
+    'enlace_tipo_documento': [
+        "//div[contains(@id, 'pendientes')]//a[contains(., '33')]",
+        "//div[contains(@id, 'pendientes')]//a[contains(., '34')]",
+        "//div[contains(@class, 'active')]//a[contains(., '33')]",
+        "//div[contains(@class, 'active')]//a[contains(., '34')]",
+        "//table[contains(., 'Resumen')]//a[contains(., '33') or contains(., '34')]",
+        "//a[contains(., '33') and not(contains(@href, 'registro'))]",
+        "//a[contains(., '34') and not(contains(@href, 'registro'))]",
+    ],
+    'modal_actualizar_datos': [
+        "//div[contains(., 'actualizar') or contains(., 'Actualizar')]",
+        "//div[@class='modal' and contains(., 'datos')]",
+        "//div[contains(@class, 'modal') and contains(., 'más tarde')]",
+    ],
+    'boton_actualizar_mas_tarde': [
+        "//button[contains(., 'más tarde')]",
+        "//button[contains(., 'Más tarde')]",
+        "//button[contains(., 'Ahora no')]",
+        "//a[contains(., 'más tarde')]",
+    ],
+    # NUEVO: Selectores para verificar si hay pendientes
+    'contador_pendientes': [
+        "//span[contains(@class, 'contador') and contains(., 'Pendientes')]",
+        "//div[contains(@class, 'contador') and contains(., 'Pendientes')]",
+        "//span[contains(., 'Pendientes') and contains(@class, 'badge')]",
+        "//span[contains(., 'Pendientes') and contains(@class, 'label')]",
+    ],
+    'tabla_facturas': [
+        "//table[contains(@class, 'facturas')]",
+        "//div[contains(@class, 'tabla-facturas')]",
+        "//table[contains(@id, 'facturas')]",
+        "//div[contains(@class, 'table-container')]",
+        "//div[contains(@class, 'grid') and contains(., 'factura')]",
+    ],
+    'fila_factura': [
+        "//tr[contains(@class, 'factura')]",
+        "//tr[contains(@data-id, 'factura')]",
+        "//tbody/tr",
+        "//div[contains(@class, 'row') and contains(@class, 'factura')]",
+    ],
+    # SELECTORES PARA IDENTIFICAR PESTAÑA ACTIVA
+    'tab_pendientes_activo': [
+        "//button[contains(., 'Pendientes') and contains(@class, 'active')]",
+        "//button[contains(., 'Pendientes') and contains(@class, 'selected')]",
+        "//button[contains(., 'Pendientes') and contains(@class, 'current')]",
+        "//button[contains(., 'Pendientes') and @aria-selected='true']",
+        "//li[contains(., 'Pendientes') and contains(@class, 'active')]",
+        "//a[contains(., 'Pendientes') and contains(@class, 'active')]",
+        "//button[contains(@class, 'active') and contains(., 'Pendientes')]",
+        "//button[contains(@class, 'tab-active') and contains(., 'Pendientes')]",
+        "//li[contains(@class, 'active') and contains(., 'Pendientes')]",
+        "//div[contains(@class, 'active') and contains(., 'Pendientes')]",
     ],
 }
 
@@ -93,27 +215,19 @@ TIMEOUTS = {
     'action_delay': 3,
 }
 
-FACTURA_PATTERNS = {
-    'texto': ['factura', 'dte', 'documento', 'comprobante', 'invoice'],
-    'estado': ['pendiente', 'por aceptar', 'validar', 'revisar', 'pending'],
-    'clases': ['fila-factura', 'item-dte', 'documento-item', 'pending-item'],
-}
-
 # ================= FUNCIONES DE UTILIDAD =================
 def validar_rut(rut_completo):
     """Validar formato de RUT chileno"""
     import re
-    
-    # Aceptar varios formatos: 12.345.678-9, 12345678-9, 12345678-K
+
     rut_pattern = re.compile(r'^(\d{1,3}(?:\.?\d{3}){2})-([\dkK])$')
     match = rut_pattern.match(rut_completo)
-    
+
     if not match:
-        # También aceptar sin guión
         if re.match(r'^\d{7,8}[\dkK]$', rut_completo):
             return True, "RUT aceptado"
-        return False, "Formato de RUT inválido. Use: 12.345.678-9 o 12345678-9"
-    
+        return False, "Formato de RUT inválido. Use: 12.345.678-9"
+
     return True, "RUT válido"
 
 def guardar_screenshot(driver, nombre):
@@ -126,41 +240,12 @@ def guardar_screenshot(driver, nombre):
     except:
         return ""
 
-def extraer_texto_elemento(elemento):
-    """Extraer texto limpio de un elemento"""
-    try:
-        texto = elemento.text.strip()
-        if texto:
-            return texto
-        texto = elemento.get_attribute('value') or ''
-        return texto.strip()
-    except:
-        return ""
-
-def buscar_elemento_con_reintentos(driver, lista_selectores, max_intentos=3):
-    """Buscar elemento con múltiples intentos y selectores - CORREGIDO"""
-    for intento in range(max_intentos):
-        for selector_type, selector_value in lista_selectores:
-            try:
-                elementos = driver.find_elements(selector_type, selector_value)
-                for elemento in elementos:
-                    try:
-                        if elemento.is_displayed() and elemento.is_enabled():
-                            return elemento
-                    except:
-                        continue
-            except:
-                continue
-        time.sleep(2)
-    return None
-
-
 class SIIAutomatorWorker(QThread):
     """Worker para ejecutar la automatización SII en segundo plano"""
     log_signal = pyqtSignal(str)
     progress_signal = pyqtSignal(int)
     finished_signal = pyqtSignal(bool, str)
-    
+
     def __init__(self, rut_empresa, rut_usuario, clave, headless=False):
         super().__init__()
         self.rut_empresa = rut_empresa
@@ -169,427 +254,527 @@ class SIIAutomatorWorker(QThread):
         self.headless = headless
         self.driver = None
         self.is_running = True
-        self.wait = None
-        
+        self.driver_wait = None
+
+    def _ingresar_rut_empresa(self):
+        """Ingresa el RUT de la empresa si el campo está presente (maneja Input y Select)"""
+        try:
+            self.log_signal.emit("🏢 Verificando campo de RUT Empresa...")
+            rut_field = None
+            for selector_type, selector_value in SII_SELECTORS['campo_rut']:
+                try:
+                    elementos = self.driver.find_elements(selector_type, selector_value)
+                    for elemento in elementos:
+                        if elemento.is_displayed():
+                            rut_field = elemento
+                            break
+                    if rut_field: break
+                except: continue
+            
+            if rut_field:
+                tag_name = rut_field.tag_name.lower()
+                self.log_signal.emit(f"📝 Detectado campo RUT ({tag_name}). Ingresando: {self.rut_empresa}")
+                
+                if tag_name == "select":
+                    # Si es un desplegable, buscar por valor o texto
+                    select = Select(rut_field)
+                    try:
+                        # Limpiar RUT de puntos y guion para comparar valores
+                        rut_clean = self.rut_empresa.replace(".", "").replace("-", "")
+                        encontrado = False
+                        for opt in select.options:
+                            opt_val = opt.get_attribute("value").replace(".", "").replace("-", "")
+                            if rut_clean in opt_val:
+                                select.select_by_value(opt.get_attribute("value"))
+                                encontrado = True
+                                break
+                        if not encontrado:
+                            select.select_by_visible_text(self.rut_empresa)
+                    except:
+                        # Respaldo: intentar coincidencia parcial en el texto
+                        for opt in select.options:
+                            if self.rut_empresa in opt.text:
+                                select.select_by_visible_text(opt.text)
+                                break
+                else:
+                    # Si es un input normal
+                    rut_field.clear()
+                    rut_field.send_keys(self.rut_empresa)
+                    rut_field.send_keys(Keys.RETURN)
+                
+                time.sleep(3)
+                return True
+            return False
+        except Exception as e:
+            self.log_signal.emit(f"⚠️ Error al ingresar RUT Empresa: {str(e)}")
+            return False
+
+    def _seleccionar_periodo_actual(self):
+        """Selecciona el año y mes actuales según el sistema (con soporte para nombres en español)"""
+        try:
+            now = datetime.now()
+            anio_actual = str(now.year)
+            mes_actual_num = now.month
+            
+            meses_es = {
+                1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+                5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+                9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+            }
+            nombre_mes = meses_es.get(mes_actual_num, "")
+            
+            self.log_signal.emit(f"📅 Seleccionando periodo actual: {nombre_mes} {anio_actual}...")
+            
+            # Paso 1: Seleccionar año
+            año_select_elem = None
+            for selector in SII_SELECTORS['select_periodo']:
+                try:
+                    elemento = self.driver.find_element(*selector)
+                    if elemento.is_displayed():
+                        año_select_elem = elemento
+                        break
+                except: continue
+            
+            if año_select_elem:
+                select = Select(año_select_elem)
+                try:
+                    select.select_by_visible_text(anio_actual)
+                except:
+                    try: select.select_by_value(anio_actual)
+                    except: pass
+                time.sleep(1)
+
+            # Paso 2: Seleccionar mes
+            mes_select_elem = None
+            for selector in SII_SELECTORS['select_mes']:
+                try:
+                    elemento = self.driver.find_element(*selector)
+                    if elemento.is_displayed():
+                        mes_select_elem = elemento
+                        break
+                except: continue
+            
+            if mes_select_elem:
+                select = Select(mes_select_elem)
+                mes_seleccionado = False
+                
+                # Intentar por varias formas
+                metodos = [
+                    lambda: select.select_by_visible_text(nombre_mes),
+                    lambda: select.select_by_value(str(mes_actual_num)),
+                    lambda: select.select_by_value(str(mes_actual_num).zfill(2)),
+                    lambda: select.select_by_index(mes_actual_num) # Asumiendo 1=Enero si hay "Seleccione"
+                ]
+                
+                for metodo in metodos:
+                    try:
+                        metodo()
+                        mes_seleccionado = True
+                        break
+                    except: continue
+                
+                if mes_seleccionado:
+                    self.log_signal.emit(f"✅ Mes seleccionado: {nombre_mes}")
+                else:
+                    self.log_signal.emit("⚠️ No se pudo seleccionar el mes exacto, intentando el más reciente disponible.")
+                    opciones = [i for i, opt in enumerate(select.options) if opt.get_attribute("value")]
+                    if opciones:
+                        select.select_by_index(opciones[-1]) # Fallback al último (que suele ser el actual si el SII está al día)
+
+            # Paso 3: Clic en Consultar
+            for selector in SII_SELECTORS['boton_consultar']:
+                try:
+                    botones = self.driver.find_elements(By.XPATH, selector)
+                    for boton in botones:
+                        if boton.is_displayed():
+                            self.log_signal.emit("🔍 Haciendo clic en Consultar...")
+                            self.driver.execute_script("arguments[0].click();", boton)
+                            time.sleep(5)
+                            return True
+                except: continue
+            
+            return False
+        except Exception as e:
+            self.log_signal.emit(f"⚠️ Error grave al seleccionar periodo: {str(e)}")
+            return False
+
     def run(self):
-        """Ejecuta el proceso de automatización - VERSIÓN SIMPLIFICADA Y CORREGIDA"""
+        """Ejecuta el proceso de automatización - FLUJO CORREGIDO PARA PESTAÑAS DINÁMICAS"""
         try:
             self.log_signal.emit("🚀 Iniciando proceso SII...")
-            
+
             # ================= CONFIGURACIÓN DEL NAVEGADOR =================
             chrome_options = Options()
-            
+
             if self.headless:
                 chrome_options.add_argument("--headless=new")
             else:
-                # Para modo visible, maximizar ventana
                 chrome_options.add_argument("--start-maximized")
-            
-            # Configuraciones mínimas para evitar problemas
+
             chrome_options.add_argument("--disable-gpu")
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            
-            # User-agent realista
             chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            
+
             self.log_signal.emit("⚙️ Configurando navegador...")
             service = Service(ChromeDriverManager().install())
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
-            
-            # ================= PASO 1: IR DIRECTAMENTE AL LOGIN =================
-            self.log_signal.emit("🌐 Navegando directamente al login del SII...")
-            
-            # Usar la URL CORREGIDA
-            login_url = SII_URLS['login']
-            self.log_signal.emit(f"🔗 URL: {login_url}")
-            
-            self.driver.get(login_url)
+            self.driver_wait = WebDriverWait(self.driver, TIMEOUTS['element_wait'])
+
+            # ================= PASO 1: LOGIN =================
+            self.log_signal.emit("🌐 Navegando al login del SII...")
+            self.driver.get(SII_URLS['login'])
             time.sleep(5)
-            
-            # Tomar screenshot inicial
-            screenshot_1 = guardar_screenshot(self.driver, "01_login_page")
-            if screenshot_1:
-                self.log_signal.emit(f"📸 Screenshot guardado: {screenshot_1}")
-            
-            # ================= PASO 2: FORMULARIO DE LOGIN =================
-            self.log_signal.emit("🔍 Buscando formulario de login...")
-            
-            # Validar RUT
-            valid, mensaje = validar_rut(self.rut_usuario)
-            if not valid:
-                self.log_signal.emit(f"❌ {mensaje}")
-                raise ValueError(mensaje)
-            
-            self.log_signal.emit(f"✅ {mensaje}")
-            
-            # ================= MÉTODO SIMPLIFICADO: BUSCAR TODOS LOS CAMPOS =================
-            self.log_signal.emit("🔎 Buscando campos del formulario...")
-            
-            # Tomar otro screenshot después de cargar
-            time.sleep(2)
-            guardar_screenshot(self.driver, "02_page_loaded")
-            
-            # Método 1: Buscar campo RUT específicamente
+
+            # Manejar posible modal de actualizar datos
+            self._manejar_modal_actualizar_datos()
+
+            guardar_screenshot(self.driver, "01_login_page")
+
+            # Buscar campos del formulario
             rut_field = None
+            clave_field = None
+
+            # Buscar campo RUT
             for selector_type, selector_value in SII_SELECTORS['campo_rut']:
                 try:
-                    self.log_signal.emit(f"  Probando selector: {selector_value}")
                     elementos = self.driver.find_elements(selector_type, selector_value)
                     for elemento in elementos:
-                        try:
-                            if elemento.is_displayed():
-                                rut_field = elemento
-                                self.log_signal.emit(f"✅ Campo RUT encontrado con: {selector_value}")
-                                break
-                        except:
-                            continue
+                        if elemento.is_displayed():
+                            rut_field = elemento
+                            break
                     if rut_field:
                         break
-                except Exception as e:
-                    self.log_signal.emit(f"  Error con selector {selector_value}: {str(e)}")
+                except:
                     continue
-            
-            # Método 2: Si no se encontró, buscar todos los inputs de texto
-            if not rut_field:
-                self.log_signal.emit("⚠️ Buscando campo RUT alternativamente...")
-                try:
-                    inputs_texto = self.driver.find_elements(By.XPATH, "//input[@type='text']")
-                    self.log_signal.emit(f"  Encontrados {len(inputs_texto)} inputs de texto")
-                    
-                    for i, input_elem in enumerate(inputs_texto):
-                        try:
-                            if input_elem.is_displayed():
-                                # Verificar si podría ser campo RUT
-                                input_id = input_elem.get_attribute("id") or ""
-                                input_name = input_elem.get_attribute("name") or ""
-                                input_placeholder = input_elem.get_attribute("placeholder") or ""
-                                
-                                if any(keyword in input_id.lower() for keyword in ['rut', 'usuario', 'user']) or \
-                                   any(keyword in input_name.lower() for keyword in ['rut', 'usuario', 'user']) or \
-                                   any(keyword in input_placeholder.lower() for keyword in ['rut', 'r.u.t.']):
-                                    rut_field = input_elem
-                                    self.log_signal.emit(f"✅ Campo RUT identificado (input {i+1})")
-                                    break
-                        except:
-                            continue
-                except Exception as e:
-                    self.log_signal.emit(f"⚠️ Error en búsqueda alternativa: {str(e)}")
-            
-            # Método 3: Si aún no se encontró, usar el primer input de texto visible
-            if not rut_field:
-                self.log_signal.emit("⚠️ Usando primer input de texto visible...")
-                try:
-                    inputs_texto = self.driver.find_elements(By.XPATH, "//input[@type='text']")
-                    for input_elem in inputs_texto:
-                        try:
-                            if input_elem.is_displayed() and input_elem.is_enabled():
-                                rut_field = input_elem
-                                self.log_signal.emit("✅ Usando primer input de texto disponible")
-                                break
-                        except:
-                            continue
-                except Exception as e:
-                    self.log_signal.emit(f"⚠️ Error: {str(e)}")
-            
-            if not rut_field:
-                self.log_signal.emit("❌ No se encontró ningún campo para RUT")
-                # Guardar HTML para análisis
-                with open("debug_login_page.html", "w", encoding="utf-8") as f:
-                    f.write(self.driver.page_source[:5000])  # Primeros 5000 caracteres
-                guardar_screenshot(self.driver, "03_no_rut_field")
-                raise Exception("No se pudo encontrar el campo RUT")
-            
-            # Buscar campo Clave
-            clave_field = None
+
+            # Buscar campo clave
             for selector_type, selector_value in SII_SELECTORS['campo_clave']:
                 try:
                     elementos = self.driver.find_elements(selector_type, selector_value)
                     for elemento in elementos:
-                        try:
-                            if elemento.is_displayed():
-                                clave_field = elemento
-                                self.log_signal.emit(f"✅ Campo clave encontrado con: {selector_value}")
-                                break
-                        except:
-                            continue
+                        if elemento.is_displayed():
+                            clave_field = elemento
+                            break
                     if clave_field:
                         break
                 except:
                     continue
-            
-            # Si no se encontró campo clave, buscar input de tipo password
-            if not clave_field:
+
+            if not rut_field or not clave_field:
+                # Buscar alternativamente
                 try:
-                    password_fields = self.driver.find_elements(By.XPATH, "//input[@type='password']")
-                    if password_fields:
-                        for field in password_fields:
-                            if field.is_displayed():
-                                clave_field = field
-                                self.log_signal.emit("✅ Campo clave encontrado (tipo password)")
-                                break
+                    inputs = self.driver.find_elements(By.TAG_NAME, "input")
+                    for inp in inputs:
+                        inp_type = inp.get_attribute("type") or ""
+                        inp_name = inp.get_attribute("name") or ""
+                        if "rut" in inp_name.lower() and not rut_field:
+                            rut_field = inp
+                        elif inp_type == "password" and not clave_field:
+                            clave_field = inp
                 except:
                     pass
-            
-            if not clave_field:
-                self.log_signal.emit("❌ No se encontró campo clave")
-                guardar_screenshot(self.driver, "04_no_clave_field")
-                raise Exception("No se pudo encontrar el campo clave")
-            
-            # ================= PASO 3: COMPLETAR FORMULARIO =================
-            self.log_signal.emit("📝 Completando formulario...")
-            
-            # Preparar RUT
-            rut_limpio = self.rut_usuario.replace('.', '').replace('-', '').upper()
-            if len(rut_limpio) > 1:
-                rut_numero = rut_limpio[:-1]
-                rut_dv = rut_limpio[-1]
-            else:
-                rut_numero = rut_limpio
-                rut_dv = ""
-            
-            # Escribir RUT
-            try:
-                rut_field.clear()
-                time.sleep(0.5)
-                rut_field.send_keys(rut_numero)
-                self.log_signal.emit(f"✅ RUT escrito: {rut_numero}")
-                time.sleep(1)
-                
-                # Buscar campo DV separado
-                dv_field = None
-                for selector_type, selector_value in SII_SELECTORS['campo_dv']:
-                    try:
-                        elemento = self.driver.find_element(selector_type, selector_value)
-                        if elemento.is_displayed():
-                            dv_field = elemento
-                            break
-                    except:
-                        continue
-                
-                if dv_field and rut_dv:
-                    dv_field.clear()
-                    time.sleep(0.5)
-                    dv_field.send_keys(rut_dv)
-                    self.log_signal.emit(f"✅ DV escrito: {rut_dv}")
-                else:
-                    # Intentar escribir guión y DV en el mismo campo
-                    rut_field.send_keys("-" + rut_dv)
-                    self.log_signal.emit("✅ RUT completo escrito")
-                    
-            except Exception as e:
-                self.log_signal.emit(f"⚠️ Error escribiendo RUT: {str(e)}")
-                # Intentar de otra forma
-                rut_field.send_keys(self.rut_usuario)
-            
+
+            if not rut_field or not clave_field:
+                raise Exception("No se pudieron encontrar los campos de login")
+
+            # Escribir credenciales
+            rut_field.clear()
+            rut_field.send_keys(self.rut_usuario)
             time.sleep(1)
-            
-            # Escribir clave
-            try:
-                clave_field.clear()
-                time.sleep(0.5)
-                
-                # Escribir caracter por caracter (más lento pero más realista)
-                for char in self.clave:
-                    clave_field.send_keys(char)
-                    time.sleep(0.05)
-                
-                self.log_signal.emit("✅ Clave escrita")
-            except Exception as e:
-                self.log_signal.emit(f"⚠️ Error escribiendo clave: {str(e)}")
-                clave_field.send_keys(self.clave)
-            
-            time.sleep(1)
-            
-            # Tomar screenshot antes de enviar
-            guardar_screenshot(self.driver, "05_antes_login")
-            
-            # ================= PASO 4: ENVIAR FORMULARIO =================
-            self.log_signal.emit("📤 Enviando formulario...")
-            
-            # Buscar botón de envío
+
+            clave_field.clear()
+            # Escribir caracter por caracter
+            for char in self.clave:
+                clave_field.send_keys(char)
+                time.sleep(0.05)
+
+            guardar_screenshot(self.driver, "02_credenciales_ingresadas")
+
+            # Buscar y hacer clic en botón de login
             submit_button = None
             for selector_type, selector_value in SII_SELECTORS['boton_login']:
                 try:
                     elemento = self.driver.find_element(selector_type, selector_value)
-                    if elemento.is_displayed() and elemento.is_enabled():
+                    if elemento.is_displayed():
                         submit_button = elemento
-                        self.log_signal.emit(f"✅ Botón de login encontrado")
                         break
                 except:
                     continue
-            
-            # Si no se encontró botón específico, buscar cualquier botón o input submit
-            if not submit_button:
-                try:
-                    # Buscar botones que contengan "Ingresar"
-                    botones = self.driver.find_elements(By.TAG_NAME, "button")
-                    for boton in botones:
-                        try:
-                            if "ingresar" in boton.text.lower() and boton.is_enabled():
-                                submit_button = boton
-                                break
-                        except:
-                            continue
-                    
-                    # Si no, buscar inputs submit
-                    if not submit_button:
-                        submits = self.driver.find_elements(By.XPATH, "//input[@type='submit']")
-                        if submits:
-                            submit_button = submits[0]
-                except Exception as e:
-                    self.log_signal.emit(f"⚠️ Error buscando botón: {str(e)}")
-            
+
             if submit_button:
-                self.log_signal.emit("🖱️ Haciendo clic en botón de login...")
-                try:
-                    submit_button.click()
-                except:
-                    # Si falla el click normal, usar JavaScript
-                    self.driver.execute_script("arguments[0].click();", submit_button)
+                submit_button.click()
             else:
-                self.log_signal.emit("⚠️ No se encontró botón, presionando ENTER...")
                 clave_field.send_keys(Keys.RETURN)
-            
-            self.log_signal.emit("✅ Formulario enviado")
-            
-            # ================= PASO 5: VERIFICAR LOGIN EXITOSO Y REDIRECCIÓN =================
-            self.log_signal.emit("🔄 Esperando respuesta del servidor...")
-            time.sleep(TIMEOUTS['login_wait'])
-            
-            # Tomar screenshot después del login
-            guardar_screenshot(self.driver, "06_despues_login")
-            
-            # Verificar si el login fue exitoso
+
+            self.log_signal.emit("✅ Formulario enviado, esperando login...")
+            time.sleep(8)
+
+            # Verificar login exitoso
             current_url = self.driver.current_url
-            page_title = self.driver.title
-            
-            self.log_signal.emit(f"🔗 URL actual: {current_url}")
-            self.log_signal.emit(f"📄 Título de página: {page_title}")
-            
-            # VERIFICAR REDIRECCIÓN - CORREGIDO
-            # Caso 1: Ya estamos en la página correcta
-            if "consdcvinternetui" in current_url:
-                self.log_signal.emit("✅ Login exitoso - Ya en página de facturas")
-            
-            # Caso 2: Estamos en siihome.cgi (página principal)
-            elif "siihome.cgi" in current_url:
-                self.log_signal.emit("⚠️ En página principal MISII, redirigiendo...")
-                
-                # Intentar navegación directa
+            if "siihome.cgi" not in current_url:
+                # Verificar errores
+                page_source = self.driver.page_source.lower()
+                error_indicators = ['incorrecto', 'inválido', 'error de autenticación', 'acceso denegado']
+                for error in error_indicators:
+                    if error in page_source:
+                        raise Exception(f"Error de login: {error}")
+
+            self.log_signal.emit("🎉 Login exitoso")
+            guardar_screenshot(self.driver, "03_login_exitoso")
+
+            # ================= PASO 2: NAVEGAR A SERVICIOS ONLINE =================
+            self.log_signal.emit("🔗 Navegando a Servicios Online...")
+
+            # Ir directamente a la URL de servicios online
+            self.driver.get(SII_URLS['servicios_online'])
+            time.sleep(5)
+            guardar_screenshot(self.driver, "04_servicios_online")
+
+            # ================= PASO 3: IMPUESTOS MENSUALES =================
+            self.log_signal.emit("📋 Buscando Impuestos Mensuales...")
+
+            # Buscar enlace de Impuestos Mensuales
+            impuestos_link = None
+            for selector_type, selector_value in SII_SELECTORS['impuestos_mensuales']:
                 try:
-                    self.driver.get(SII_URLS['facturas'])
-                    time.sleep(5)
-                    
-                    if "consdcvinternetui" in self.driver.current_url:
-                        self.log_signal.emit("✅ Redireccionamiento manual exitoso")
+                    if isinstance(selector_value, str):
+                        elementos = self.driver.find_elements(By.XPATH, selector_value)
                     else:
-                        self.log_signal.emit("❌ No se pudo redirigir")
-                        # Intentar alternativa
-                        self._navegar_por_menu()
-                        
-                except Exception as e:
-                    self.log_signal.emit(f"⚠️ Error redirigiendo: {str(e)}")
-                    self._navegar_por_menu()
-            
-            # Caso 3: URL desconocida
-            else:
-                self.log_signal.emit(f"⚠️ URL desconocida: {current_url}")
-                self.log_signal.emit("Intentando navegación directa...")
-                self.driver.get(SII_URLS['facturas'])
+                        elementos = self.driver.find_elements(selector_type, selector_value)
+
+                    for elemento in elementos:
+                        if elemento.is_displayed():
+                            impuestos_link = elemento
+                            break
+                    if impuestos_link:
+                        break
+                except:
+                    continue
+
+            if impuestos_link:
+                self.log_signal.emit("✅ Enlace de Impuestos Mensuales encontrado")
+                impuestos_link.click()
                 time.sleep(5)
-            
-            # Verificar indicadores comunes de error
-            page_source = self.driver.page_source.lower()
-            error_indicators = ['error', 'incorrecto', 'inválido', 'no válido', 'rechazado']
-            
-            for indicator in error_indicators:
-                if indicator in page_source:
-                    self.log_signal.emit(f"❌ Error detectado: '{indicator}'")
-                    
-                    # Guardar página de error
-                    with open("debug_error_page.html", "w", encoding="utf-8") as f:
-                        f.write(self.driver.page_source[:10000])
-                    
-                    # Verificar si es error de credenciales
-                    if 'incorrect' in indicator or 'inválid' in indicator:
-                        raise Exception("Credenciales incorrectas")
+            else:
+                # Si no se encuentra, ir directamente a la URL
+                self.log_signal.emit("⚠️ No se encontró enlace, navegando directamente...")
+                self.driver.get(SII_URLS['servicios_online'])
+                time.sleep(5)
+
+            guardar_screenshot(self.driver, "05_impuestos_mensuales")
+
+            # ================= PASO 4: REGISTRO DE COMPRAS Y VENTAS =================
+            self.log_signal.emit("📄 Buscando Registro de Compras y Ventas...")
+
+            registro_link = None
+            for selector_type, selector_value in SII_SELECTORS['registro_compras_ventas']:
+                try:
+                    if isinstance(selector_value, str):
+                        elementos = self.driver.find_elements(By.XPATH, selector_value)
                     else:
-                        raise Exception(f"Error de login: {indicator}")
-            
-            # Verificar indicadores de éxito
-            success_indicators = ['contribuyente', 'bienvenido', 'menú', 'inicio', 'home']
-            login_successful = False
-            
-            for indicator in success_indicators:
-                if indicator in page_source:
-                    login_successful = True
-                    self.log_signal.emit(f"✅ Login exitoso detectado: '{indicator}'")
-                    break
-            
-            # Verificar por cambio de URL
-            if not login_successful:
-                login_pages = ['autenticacion', 'login', 'ingreso', 'acceso']
-                if not any(page in current_url.lower() for page in login_pages):
-                    login_successful = True
-                    self.log_signal.emit("✅ Login exitoso (cambio de URL detectado)")
-            
-            if not login_successful:
-                self.log_signal.emit("⚠️ No se pudo verificar login claramente")
-                guardar_screenshot(self.driver, "07_login_ambiguo")
-                # Continuar de todos modos, podría haber CAPTCHA
-            
-            self.log_signal.emit("🎉 ¡Login exitoso!")
-            time.sleep(2)
-            
-            # ================= PASO 6: NAVEGAR A FACTURAS PENDIENTES =================
-            self.log_signal.emit("📄 Navegando a facturas pendientes...")
-            
-            # Verificar si ya estamos en la página correcta, si no, ir
-            if "consdcvinternetui" not in self.driver.current_url:
+                        elementos = self.driver.find_elements(selector_type, selector_value)
+
+                    for elemento in elementos:
+                        if elemento.is_displayed():
+                            registro_link = elemento
+                            break
+                    if registro_link:
+                        break
+                except:
+                    continue
+
+            if registro_link:
+                self.log_signal.emit("✅ Enlace de Registro encontrado")
+                registro_link.click()
+                time.sleep(5)
+            else:
+                # Ir directamente
+                self.driver.get(SII_URLS['registro_compras'])
+                time.sleep(5)
+
+            guardar_screenshot(self.driver, "06_registro_compras")
+
+            # ================= PASO 5: INGRESAR AL REGISTRO =================
+            self.log_signal.emit("🚪 Ingresando al Registro...")
+
+            ingresar_link = None
+            for selector_type, selector_value in SII_SELECTORS['ingresar_registro']:
+                try:
+                    if isinstance(selector_value, str):
+                        elementos = self.driver.find_elements(By.XPATH, selector_value)
+                    else:
+                        elementos = self.driver.find_elements(selector_type, selector_value)
+
+                    for elemento in elementos:
+                        if elemento.is_displayed():
+                            ingresar_link = elemento
+                            break
+                    if ingresar_link:
+                        break
+                except:
+                    continue
+
+            if ingresar_link:
+                self.log_signal.emit("✅ Enlace 'Ingresar' encontrado")
+                ingresar_link.click()
+                time.sleep(8)
+            else:
+                # Intentar navegar directamente
                 self.driver.get(SII_URLS['facturas'])
                 time.sleep(8)
-            
-            guardar_screenshot(self.driver, "08_facturas_page")
-            
-            # ================= PASO 7: SELECCIONAR PERIODO ACTUAL =================
+
+            # Verificar que estamos en la página correcta
+            current_url = self.driver.current_url
+            if "consdcvinternetui" not in current_url:
+                self.log_signal.emit(f"⚠️ URL actual: {current_url}")
+                self.log_signal.emit("Intentando navegación directa...")
+                self.driver.get(SII_URLS['facturas'])
+                time.sleep(8)
+
+            self.log_signal.emit("✅ En página de registro de facturas")
+            guardar_screenshot(self.driver, "07_registro_facturas")
+
+            # ================= PASO 5.5: INGRESAR RUT Y SELECCIONAR FECHA =================
+            self._ingresar_rut_empresa()
             self._seleccionar_periodo_actual()
-            
-            # ================= PASO 8: BUSCAR PESTAÑA PENDIENTES =================
-            self.log_signal.emit("🔍 Buscando pestaña 'Pendientes'...")
-            
-            encontro_pendientes = False
-            for selector in SII_SELECTORS['facturas_pendientes']:
+            time.sleep(3)
+
+            # ================= PASO 6: ASEGURAR PESTAÑA COMPRA =================
+            self.log_signal.emit("🛒 Asegurando pestaña 'COMPRA'...")
+            compra_clicked = False
+            for selector in SII_SELECTORS['tab_compra']:
                 try:
                     elementos = self.driver.find_elements(By.XPATH, selector)
                     for elemento in elementos:
-                        try:
-                            if elemento.is_displayed():
-                                self.log_signal.emit(f"✅ Elemento 'Pendientes' encontrado")
-                                self.driver.execute_script("arguments[0].click();", elemento)
-                                encontro_pendientes = True
-                                time.sleep(5)
-                                guardar_screenshot(self.driver, "09_pendientes_page")
-                                break
-                        except:
-                            continue
-                    if encontro_pendientes:
-                        break
-                except:
+                        if elemento.is_displayed():
+                            self.log_signal.emit("✅ Pestaña 'COMPRA' encontrada, seleccionando...")
+                            self.driver.execute_script("arguments[0].click();", elemento)
+                            compra_clicked = True
+                            time.sleep(4) # Aumentar espera para carga de sub-pestañas
+                            break
+                    if compra_clicked: break
+                except: continue
+
+            if not compra_clicked:
+                self.log_signal.emit("⚠️ No se encontró pestaña 'COMPRA' explícita, buscando texto en la página...")
+                if "COMPRA" in self.driver.page_source:
+                    self.log_signal.emit("✅ Texto 'COMPRA' detectado, procediendo con sub-pestañas")
+                    compra_clicked = True
+
+            # ================= PASO 7: ASEGURAR QUE ESTAMOS EN PESTAÑA PENDIENTES =================
+            if not self._navegar_a_pendientes():
+                self.log_signal.emit("ℹ️ No se detectaron facturas pendientes")
+                self.finished_signal.emit(True, "No hay facturas pendientes")
+                return
+
+            # ================= PASO 8: PROCESAR DOCUMENTOS POR TIPO (ESTRICTO) =================
+            # Definir tipos a procesar en orden según requerimiento
+            codigos_a_procesar = ['(33)', '(34)']
+            nombres_mapeo = {
+                '(33)': 'Factura Electrónica (33)',
+                '(34)': 'Factura no Afecta o Exenta Electrónica (34)'
+            }
+            
+            self.log_signal.emit(f"📄 Iniciando procesamiento de tipos: {', '.join(codigos_a_procesar)}")
+            
+            total_facturas_aceptadas = 0
+            encontrado_al_menos_uno = False
+
+            for codigo in codigos_a_procesar:
+                if not self.is_running:
+                    break
+
+                try:
+                    # Re-encontrar el enlace por su código en cada iteración (con REINTENTOS)
+                    enlace_actual = None
+                    nombre_completo = nombres_mapeo.get(codigo, codigo)
+                    codigo_sin_parentesis = codigo.replace('(', '').replace(')', '')
+                    for intento in range(5):
+                        self.log_signal.emit(f"🔍 Buscando categoría: {nombre_completo} (intento {intento+1}/5)...")
+                        
+                        # 1. PRIORIDAD: Buscar con selectores estrictos (dentro del contenedor Pendientes)
+                        for selector in SII_SELECTORS['enlace_tipo_documento']:
+                            try:
+                                matches = self.driver.find_elements(By.XPATH, selector)
+                                for m in matches:
+                                    if not m.is_displayed(): continue
+                                    txt = m.text.strip()
+                                    if codigo in txt or (f" {codigo_sin_parentesis} " in f" {txt} "):
+                                        enlace_actual = m
+                                        break
+                                if enlace_actual: break
+                            except: continue
+
+                        # 2. SEGUNDA OPCIÓN: Buscar en todos los enlaces solo si falló lo anterior
+                        if not enlace_actual:
+                            enlaces = self.driver.find_elements(By.TAG_NAME, "a")
+                            for e in enlaces:
+                                if not e.is_displayed(): continue
+                                txt = e.text.strip()
+                                # Coincidencia estricta con el código (33/34)
+                                if (f"({codigo_sin_parentesis})" in txt) and ("registro" not in txt.lower()):
+                                    enlace_actual = e
+                                    break
+                        
+                        if enlace_actual:
+                            break
+                        
+                        self.log_signal.emit(f"⏳ No encontrado aún, esperando 3s... (intento {intento+1}/5)")
+                        time.sleep(3)
+
+                    if not enlace_actual:
+                        self.log_signal.emit(f"⚠️ Aviso: No se encontraron documentos en la categoría {nombre_completo}")
+                        continue
+
+                    encontrado_al_menos_uno = True
+                    self.log_signal.emit(f"🚀 Entrando a: {nombre_completo}")
+
+                    # Hacer clic
+                    self.driver_wait.until(EC.element_to_be_clickable(enlace_actual))
+                    self.driver.execute_script("arguments[0].click();", enlace_actual)
+                    time.sleep(5)
+
+                    guardar_screenshot(self.driver, f"10_entrando_a_{codigo.replace('(', '').replace(')', '')}")
+
+                    # Procesar facturas dentro
+                    aceptadas = self._procesar_facturas_en_tipo_documento(nombre_completo)
+                    total_facturas_aceptadas += aceptadas
+
+                    # Volver al resumen para el siguiente tipo
+                    self.log_signal.emit(f"↩️ Finalizada categoría {codigo}, regresando al resumen de Pendientes...")
+                    self._navegar_a_pendientes()
+                    time.sleep(3)
+
+                except Exception as e:
+                    self.log_signal.emit(f"⚠️ Error procesando {codigo}: {str(e)}")
+                    try:
+                        self.driver.back()
+                        time.sleep(3)
+                    except: pass
                     continue
-            
-            if not encontro_pendientes:
-                self.log_signal.emit("⚠️ No se encontró pestaña 'Pendientes'")
-            
-            # ================= PASO 9: BUSCAR Y ACEPTAR FACTURAS =================
-            self._buscar_y_aceptar_facturas_simplificado()
-            
+
+            # Si no se encontró ningún enlace de los 4 tipos, intentar procesar vista actual por si acaso
+            if not encontrado_al_menos_uno:
+                self.log_signal.emit("🔍 No se encontraron categorías específicas, revisando vista general...")
+                total_facturas_aceptadas += self._procesar_facturas_en_vista_actual()
+
+            # Resultado final
+            if total_facturas_aceptadas > 0:
+                mensaje = f"🎉 Proceso completado. Se aceptaron {total_facturas_aceptadas} factura(s) en total"
+                self.log_signal.emit(mensaje)
+                self.finished_signal.emit(True, f"{total_facturas_aceptadas} facturas aceptadas")
+            else:
+                mensaje = "ℹ️ No hay facturas pendientes"
+                self.log_signal.emit(mensaje)
+                self.finished_signal.emit(True, "No hay facturas pendientes")
+
         except Exception as e:
             error_msg = f"❌ Error en el proceso: {str(e)}"
             self.log_signal.emit(error_msg)
             self.finished_signal.emit(False, error_msg)
-            
+
         finally:
             if self.driver:
                 self.log_signal.emit("🔒 Cerrando navegador...")
@@ -597,383 +782,814 @@ class SIIAutomatorWorker(QThread):
                     self.driver.quit()
                 except:
                     pass
-    
-    def _seleccionar_periodo_actual(self):
-        """Seleccionar automáticamente el mes y año actual"""
+
+    def _navegar_a_pendientes(self):
+        """Asegura que la pestaña Pendientes esté activa y el contenido cargado (Refinado)"""
         try:
-            self.log_signal.emit("📅 Seleccionando periodo actual...")
+            self.log_signal.emit("🔍 Asegurando navegación a pestaña 'Pendientes'...")
             
-            # Obtener mes y año actual
-            ahora = datetime.now()
-            mes_actual = ahora.month
-            año_actual = ahora.year
-            
-            self.log_signal.emit(f"📆 Periodo actual: {mes_actual}/{año_actual}")
-            
-            # Tomar screenshot antes de seleccionar
-            guardar_screenshot(self.driver, "11_antes_seleccion_periodo")
-            
-            # ================= BUSCAR Y SELECCIONAR AÑO =================
-            self.log_signal.emit("🔍 Buscando selector de año...")
-            
-            # Intentar diferentes formas de encontrar el selector de año
-            selectores_año = [
-                "//select[@id='periodo']/option[contains(text(), '202')]",
-                "//select[contains(@name, 'ano')]",
-                "//select[contains(@id, 'ano')]",
-                "//select[contains(@ng-model, 'ano')]",
-                "//select[contains(@data-ng-model, 'ano')]",
-                "//*[contains(text(), 'Año')]/following-sibling::select",
-                "//select[contains(@class, 'anio')]",
-                "//select[contains(@name, 'periodo')]",
-                "//select[contains(@id, 'periodo')]",
-            ]
-            
-            selector_año_encontrado = None
-            for selector in selectores_año:
-                try:
-                    elementos = self.driver.find_elements(By.XPATH, selector)
-                    if elementos:
-                        # Limpiar el selector si tiene parte de option
-                        if "/option" in selector:
-                            selector_año_encontrado = selector.split("/option")[0]
-                        else:
-                            selector_año_encontrado = selector
-                        self.log_signal.emit(f"✅ Selector de año encontrado: {selector}")
-                        break
-                except:
-                    continue
-            
-            # Si encontramos el selector de año, seleccionar el año actual
-            if selector_año_encontrado:
-                try:
-                    select_año = self.driver.find_element(By.XPATH, selector_año_encontrado)
-                    select_obj = Select(select_año)
-                    
-                    # Intentar seleccionar por valor visible
-                    año_seleccionado = False
-                    for opcion in select_obj.options:
-                        texto_opcion = opcion.text.strip()
-                        if str(año_actual) in texto_opcion:
-                            select_obj.select_by_visible_text(texto_opcion)
-                            self.log_signal.emit(f"✅ Año seleccionado: {texto_opcion}")
-                            año_seleccionado = True
-                            time.sleep(2)
-                            break
-                    
-                    if not año_seleccionado:
-                        # Intentar seleccionar la última opción (normalmente el año más reciente)
-                        if len(select_obj.options) > 0:
-                            ultima_opcion = select_obj.options[-1].text.strip()
-                            select_obj.select_by_visible_text(ultima_opcion)
-                            self.log_signal.emit(f"✅ Año seleccionado (última opción): {ultima_opcion}")
-                            time.sleep(2)
-                            
-                except Exception as e:
-                    self.log_signal.emit(f"⚠️ Error seleccionando año: {str(e)}")
-            else:
-                self.log_signal.emit("⚠️ No se encontró selector de año específico")
-            
-            # ================= BUSCAR Y SELECCIONAR MES =================
-            self.log_signal.emit("🔍 Buscando selector de mes...")
-            
-            # Intentar diferentes formas de encontrar el selector de mes
-            selectores_mes = [
-                "//select[contains(@name, 'mes')]",
-                "//select[contains(@id, 'mes')]",
-                "//select[contains(@ng-model, 'mes')]",
-                "//select[contains(@data-ng-model, 'mes')]",
-                "//*[contains(text(), 'Mes')]/following-sibling::select",
-                "//select[contains(@class, 'mes')]",
-                "//select[@id='mes']",
-                "//select[contains(@name, 'periodo_mes')]",
-            ]
-            
-            selector_mes_encontrado = None
-            for selector in selectores_mes:
-                try:
-                    elementos = self.driver.find_elements(By.XPATH, selector)
-                    if elementos:
-                        selector_mes_encontrado = selector
-                        self.log_signal.emit(f"✅ Selector de mes encontrado: {selector}")
-                        break
-                except:
-                    continue
-            
-            # Si encontramos el selector de mes, seleccionar el mes actual
-            if selector_mes_encontrado:
-                try:
-                    select_mes = self.driver.find_element(By.XPATH, selector_mes_encontrado)
-                    select_obj = Select(select_mes)
-                    
-                    # Mapeo de nombres de meses en español
-                    meses_espanol = {
-                        1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-                        5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-                        9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
-                    }
-                    
-                    mes_nombre = meses_espanol.get(mes_actual, "Enero")
-                    
-                    # Intentar seleccionar por valor visible
-                    mes_seleccionado = False
-                    for opcion in select_obj.options:
-                        texto_opcion = opcion.text.strip()
-                        if mes_nombre.lower() in texto_opcion.lower():
-                            select_obj.select_by_visible_text(texto_opcion)
-                            self.log_signal.emit(f"✅ Mes seleccionado: {texto_opcion}")
-                            mes_seleccionado = True
-                            time.sleep(2)
-                            break
-                    
-                    if not mes_seleccionado:
-                        # Buscar por número de mes
-                        for opcion in select_obj.options:
-                            texto_opcion = opcion.text.strip()
-                            if str(mes_actual) in texto_opcion or f"0{mes_actual}" in texto_opcion:
-                                select_obj.select_by_visible_text(texto_opcion)
-                                self.log_signal.emit(f"✅ Mes seleccionado (por número): {texto_opcion}")
-                                time.sleep(2)
-                                break
-                            
-                except Exception as e:
-                    self.log_signal.emit(f"⚠️ Error seleccionando mes: {str(e)}")
-            else:
-                self.log_signal.emit("⚠️ No se encontró selector de mes específico")
-            
-            # ================= BUSCAR BOTÓN CONSULTAR =================
-            self.log_signal.emit("🔍 Buscando botón Consultar...")
-            
-            selectores_consultar = [
-                "//button[contains(text(), 'Consultar')]",
-                "//input[@value='Consultar']",
-                "//button[@type='submit' and contains(text(), 'Consultar')]",
-                "//a[contains(text(), 'Consultar')]",
-                "//*[contains(@class, 'btn-consultar')]",
-                "//input[@type='submit' and contains(@value, 'Consultar')]",
-                "//button[contains(@class, 'btn') and contains(text(), 'Consultar')]",
-            ]
-            
-            consultar_encontrado = False
-            for selector in selectores_consultar:
-                try:
-                    botones = self.driver.find_elements(By.XPATH, selector)
-                    for boton in botones:
-                        if boton.is_displayed():
-                            self.log_signal.emit("✅ Botón Consultar encontrado")
-                            self.driver.execute_script("arguments[0].click();", boton)
-                            self.log_signal.emit("🔄 Consultando periodo seleccionado...")
-                            time.sleep(5)
-                            
-                            # Tomar screenshot después de consultar
-                            guardar_screenshot(self.driver, "12_despues_consultar")
-                            consultar_encontrado = True
-                            break
-                    if consultar_encontrado:
-                        break
-                except:
-                    continue
-            
-            if not consultar_encontrado:
-                self.log_signal.emit("⚠️ No se encontró botón Consultar, intentando con ENTER...")
-                try:
-                    # Intentar presionar ENTER en cualquier campo
-                    self.driver.find_element(By.TAG_NAME, "body").send_keys(Keys.RETURN)
-                    time.sleep(5)
-                    guardar_screenshot(self.driver, "13_despues_enter")
-                except:
-                    pass
-            
-            return True
-            
-        except Exception as e:
-            self.log_signal.emit(f"❌ Error seleccionando periodo: {str(e)}")
-            guardar_screenshot(self.driver, "error_seleccion_periodo")
-            return False
-    
-    def _navegar_por_menu(self):
-        """Intentar navegar por el menú de MISII"""
-        try:
-            self.log_signal.emit("🔍 Buscando menú de facturas...")
-            
-            # Intentar encontrar el menú de "Factura Electrónica"
-            for selector in SII_SELECTORS.get('menu_facturas', []):
+            # 1. Verificar si ya estamos ahí realmente
+            if self._verificar_tab_pendientes_activa():
+                self.log_signal.emit("✅ Confirmado: Ya estamos en la pestaña 'Pendientes'")
+                return True
+                
+            # 2. Intentar hacer clic en los selectores de la pestaña Pendientes
+            # Priorizar clics explícitos
+            for selector in SII_SELECTORS['tabs_principales']:
                 try:
                     elementos = self.driver.find_elements(By.XPATH, selector)
                     for elemento in elementos:
                         if elemento.is_displayed():
-                            self.log_signal.emit("✅ Menú 'Factura Electrónica' encontrado")
+                            self.log_signal.emit(f"👆 Clicando en pestaña 'Pendientes'...")
+                            self.driver_wait.until(EC.element_to_be_clickable(elemento))
                             self.driver.execute_script("arguments[0].click();", elemento)
-                            time.sleep(3)
-                            
-                            # Buscar "Registro de Compras y Ventas"
-                            for reg_selector in SII_SELECTORS.get('link_registro_compras', []):
+                            time.sleep(5)
+                            if self._verificar_tab_pendientes_activa():
+                                return True
+                except: continue
+                
+            # 3. Si no funcionó, buscar si estamos atrapados en 'Registro'
+            body_text = self.driver.find_element(By.TAG_NAME, "body").text.lower()
+            if "registro de compras" in body_text and "resúmenes" not in body_text:
+                self.log_signal.emit("⚠️ Detectado en 'Registro', intentando forzar cambio a 'Pendientes'...")
+                # Buscar botones que digan exactamente 'Pendientes'
+                try:
+                    btn_pend = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Pendientes')]")
+                    self.driver.execute_script("arguments[0].click();", btn_pend)
+                    time.sleep(5)
+                except: pass
+
+            # 4. Verificar de nuevo
+            if self._verificar_tab_pendientes_activa():
+                return True
+                
+            # Fallback final: revisar si el contenido de la tabla está ahí aunque la pestaña no marque activa
+            return self._hay_facturas_pendientes_visualmente()
+        except Exception as e:
+            self.log_signal.emit(f"⚠️ Error navegando a pendientes: {str(e)}")
+            return False
+
+    def _verificar_tab_pendientes_activa(self):
+        """Verifica si la pestaña de pendientes está activa con alta precisión"""
+        try:
+            # 1. Buscar pestañas que estén activas/destacadas mediante clases específicas
+            clases_activas = ['active', 'selected', 'current', 'tab-active', 'active-tab']
+            for selector in SII_SELECTORS.get('tab_pendientes_activo', []):
+                try:
+                    elementos = self.driver.find_elements(By.XPATH, selector)
+                    for elemento in elementos:
+                        if elemento.is_displayed():
+                            clase = elemento.get_attribute("class")
+                            if any(c in clase for c in clases_activas) or elemento.get_attribute("aria-selected") == "true":
+                                # Triple check: El texto debe ser Pendientes
+                                if "pendientes" in elemento.text.lower():
+                                    return True
+                except: continue
+            
+            # 2. Verificar contenido UNICO de Pendientes (La tabla de Resumen)
+            try:
+                # Si vemos el texto "Resúmenes" o códigos (33/34) sin el detalle del Registro
+                body_text = self.driver.find_element(By.TAG_NAME, "body").text.lower()
+                if "resúmenes" in body_text and ("(33)" in body_text or "(34)" in body_text) and "detalle" not in body_text:
+                    return True
+            except: pass
+            
+            # 3. También verificar si el contenedor de pendientes es visible
+            for selector in SII_SELECTORS.get('contenido_pendientes', []):
+                try:
+                    elementos = self.driver.find_elements(By.XPATH, selector)
+                    for elemento in elementos:
+                        if elemento.is_displayed():
+                            # Doble check: Asegurarse que no sea el de Registro
+                            id_attr = elemento.get_attribute("id").lower()
+                            if "registro" not in id_attr and "pendientes" in id_attr:
+                                return True
+                            # Si no tiene id pero es el contenido visible bajo el tab Pendientes
+                            if "pendientes" in elemento.text.lower()[:50]:
+                                return True
+                except: continue
+            
+            return False
+        except:
+            return False
+
+    def _hay_facturas_pendientes_visualmente(self):
+        """Verifica visualmente si hay facturas pendientes en la página"""
+        try:
+            # Buscar elementos visibles que indiquen pendientes
+            patterns_to_find = [
+                "pendiente",
+                "por aceptar",
+                "nueva",
+                "recibida"
+            ]
+            
+            page_text = self.driver.find_element(By.TAG_NAME, "body").text.lower()
+            
+            for pattern in patterns_to_find:
+                if pattern in page_text:
+                    if "no se encuentran" in page_text or "no hay" in page_text:
+                        self.log_signal.emit("ℹ️ Se detectó mensaje de 'No hay facturas'")
+                        return False
+                    self.log_signal.emit(f"✅ Detectado texto '{pattern}' que indica pendientes")
+                    return True
+            
+            # Buscar tablas o listas de facturas
+            for selector in SII_SELECTORS['tabla_facturas']:
+                try:
+                    elementos = self.driver.find_elements(By.XPATH, selector)
+                    for elemento in elementos:
+                        if elemento.is_displayed():
+                            # Contar filas
+                            for fila_selector in SII_SELECTORS['fila_factura']:
                                 try:
-                                    links = self.driver.find_elements(By.XPATH, reg_selector)
-                                    for link in links:
-                                        if link.is_displayed():
-                                            self.log_signal.emit("✅ Link 'Registro de Compras' encontrado")
-                                            self.driver.execute_script("arguments[0].click();", link)
-                                            time.sleep(5)
-                                            return True
+                                    filas = elemento.find_elements(By.XPATH, fila_selector)
+                                    if len(filas) > 0:
+                                        self.log_signal.emit(f"📊 Encontradas {len(filas)} filas de posibles facturas pendientes")
+                                        return True
                                 except:
                                     continue
                 except:
                     continue
             
-            self.log_signal.emit("⚠️ No se pudo navegar por menú")
+            # Buscar checkboxes de selección
+            for selector in SII_SELECTORS['checkbox_factura_individual']:
+                try:
+                    checkboxes = self.driver.find_elements(By.XPATH, selector)
+                    if len(checkboxes) > 0:
+                        self.log_signal.emit(f"📊 Encontrados {len(checkboxes)} checkboxes que podrían ser facturas pendientes")
+                        return True
+                except:
+                    continue
+                    
             return False
-            
-        except Exception as e:
-            self.log_signal.emit(f"⚠️ Error navegando por menú: {str(e)}")
+        except:
             return False
 
-    def _buscar_y_aceptar_facturas_simplificado(self):
-        """Versión simplificada para aceptar facturas"""
+    def _manejar_modal_actualizar_datos(self):
+        """Manejar modal de actualización de datos si aparece"""
         try:
-            self.log_signal.emit("🔍 Buscando facturas pendientes...")
-            
-            # Esperar un poco más para que carguen las facturas
+            time.sleep(2)
+            for selector in SII_SELECTORS['modal_actualizar_datos']:
+                try:
+                    modales = self.driver.find_elements(By.XPATH, selector)
+                    for modal in modales:
+                        if modal.is_displayed():
+                            self.log_signal.emit("ℹ️ Modal de actualización detectado")
+
+                            # Buscar botón "más tarde"
+                            for btn_selector in SII_SELECTORS['boton_actualizar_mas_tarde']:
+                                try:
+                                    botones = self.driver.find_elements(By.XPATH, btn_selector)
+                                    for boton in botones:
+                                        if boton.is_displayed():
+                                            self.log_signal.emit("✅ Haciendo clic en 'Actualizar más tarde'")
+                                            self.driver_wait.until(EC.element_to_be_clickable(boton))
+                                            boton.click()
+                                            time.sleep(2)
+                                            return True
+                                except:
+                                    continue
+                except:
+                    continue
+            return False
+        except:
+            return False
+
+    def _procesar_facturas_en_tipo_documento(self, tipo_documento):
+        """Procesar facturas dentro de un tipo de documento específico"""
+        try:
+            self.log_signal.emit(f"🔍 Procesando facturas en {tipo_documento}...")
+            time.sleep(3)
+
+            facturas_aceptadas = 0
+
+            # Primero verificar si hay facturas pendientes en esta categoría
+            if not self._hay_facturas_pendientes_en_categoria():
+                self.log_signal.emit(f"ℹ️ No hay facturas pendientes en {tipo_documento}")
+                return 0
+
+            # Paso 1: Buscar y marcar todas las facturas pendientes
+            checkboxes_marcados = self._marcar_todas_las_facturas_en_vista_actual()
+
+            if checkboxes_marcados > 0:
+                self.log_signal.emit(f"✅ Marcadas {checkboxes_marcados} facturas en {tipo_documento}")
+
+                # Paso 2: Buscar botón de acuso de recibo masivo
+                boton_acuso_recibo_masivo = self._buscar_boton_acuso_recibo_masivo()
+
+                if boton_acuso_recibo_masivo:
+                    self.log_signal.emit(f"✅ Botón de acuso de recibo masivo encontrado en {tipo_documento}")
+
+                    # Paso 3: Hacer clic en acuso de recibo masivo
+                    guardar_screenshot(self.driver, f"11_antes_acuso_recibo_masivo_{tipo_documento.replace(' ', '_').replace('(', '').replace(')', '')}")
+
+                    self.driver_wait.until(EC.element_to_be_clickable(boton_acuso_recibo_masivo))
+                    self.driver.execute_script("arguments[0].click();", boton_acuso_recibo_masivo)
+                    time.sleep(3)
+
+                    # Paso 4: Manejar el modal de confirmación (seleccionar primera opción y confirmar)
+                    if self._manejar_modal_confirmacion_acuso_recibo():
+                        facturas_aceptadas = checkboxes_marcados
+                        self.log_signal.emit(f"✅ {facturas_aceptadas} facturas aceptadas en {tipo_documento}")
+                        guardar_screenshot(self.driver, f"12_despues_acuso_recibo_masivo_{tipo_documento.replace(' ', '_').replace('(', '').replace(')', '')}")
+                    else:
+                        self.log_signal.emit(f"⚠️ No se pudo confirmar el acuso de recibo en {tipo_documento}")
+                else:
+                    self.log_signal.emit(f"⚠️ No se encontró botón de acuso de recibo masivo en {tipo_documento}")
+            else:
+                self.log_signal.emit(f"ℹ️ No se encontraron facturas para marcar en {tipo_documento}")
+
+            return facturas_aceptadas
+
+        except Exception as e:
+            self.log_signal.emit(f"⚠️ Error procesando {tipo_documento}: {str(e)}")
+            return 0
+
+    def _procesar_facturas_en_vista_actual(self):
+        """Procesar facturas en la vista actual sin hacer clic en tipo de documento"""
+        try:
+            self.log_signal.emit("🔍 Procesando facturas en la vista actual...")
+            time.sleep(3)
+
+            facturas_aceptadas = 0
+
+            # Verificar si hay facturas pendientes en la vista actual
+            if not self._hay_facturas_pendientes_en_categoria():
+                self.log_signal.emit("ℹ️ No hay facturas pendientes en la vista actual")
+                return 0
+
+            # Paso 1: Buscar y marcar todas las facturas pendientes
+            checkboxes_marcados = self._marcar_todas_las_facturas_en_vista_actual()
+
+            if checkboxes_marcados > 0:
+                self.log_signal.emit(f"✅ Marcadas {checkboxes_marcados} facturas en vista actual")
+
+                # Paso 2: Buscar botón de acuso de recibo masivo
+                boton_acuso_recibo_masivo = self._buscar_boton_acuso_recibo_masivo()
+
+                if boton_acuso_recibo_masivo:
+                    self.log_signal.emit("✅ Botón de acuso de recibo masivo encontrado")
+
+                    # Paso 3: Hacer clic en acuso de recibo masivo
+                    guardar_screenshot(self.driver, "11_antes_acuso_recibo_masivo_vista_actual")
+
+                    self.driver_wait.until(EC.element_to_be_clickable(boton_acuso_recibo_masivo))
+                    self.driver.execute_script("arguments[0].click();", boton_acuso_recibo_masivo)
+                    time.sleep(3)
+
+                    # Paso 4: Manejar el modal de confirmación (seleccionar primera opción y confirmar)
+                    if self._manejar_modal_confirmacion_acuso_recibo():
+                        facturas_aceptadas = checkboxes_marcados
+                        self.log_signal.emit(f"✅ {facturas_aceptadas} facturas aceptadas en vista actual")
+                        guardar_screenshot(self.driver, "12_despues_acuso_recibo_masivo_vista_actual")
+                    else:
+                        self.log_signal.emit("⚠️ No se pudo confirmar el acuso de recibo en vista actual")
+                else:
+                    self.log_signal.emit("⚠️ No se encontró botón de acuso de recibo masivo en vista actual")
+            else:
+                self.log_signal.emit("ℹ️ No se encontraron facturas para marcar en vista actual")
+
+            return facturas_aceptadas
+
+        except Exception as e:
+            self.log_signal.emit(f"⚠️ Error procesando facturas en vista actual: {str(e)}")
+            return 0
+
+    def _marcar_todas_las_facturas_en_vista_actual(self):
+        """Marcar todas las facturas en la vista actual del tipo de documento"""
+        try:
+            self.log_signal.emit("🔲 Buscando checkboxes para seleccionar todas las facturas...")
+
+            # Intento 1: Buscar checkbox "Seleccionar todo"
+            for selector in SII_SELECTORS['checkbox_seleccionar_todo']:
+                try:
+                    checkboxes = self.driver.find_elements(By.XPATH, selector)
+                    for checkbox in checkboxes:
+                        if checkbox.is_displayed() and checkbox.is_enabled():
+                            self.log_signal.emit("✅ Checkbox 'Seleccionar todo' encontrado")
+
+                            # Esperar a que el elemento sea clickeable
+                            self.driver_wait.until(EC.element_to_be_clickable(checkbox))
+                            
+                            # Si no está marcado, marcarlo
+                            if not checkbox.is_selected():
+                                checkbox.click()
+                                time.sleep(2)
+
+                            guardar_screenshot(self.driver, "13_checkbox_todo_marcado")
+                            return self._contar_checkboxes_marcados_en_vista_actual()
+                except Exception as e:
+                    self.log_signal.emit(f"⚠️ Error con checkbox 'Seleccionar todo': {str(e)}")
+                    continue
+
+            # Intento 2: Si no hay checkbox "Seleccionar todo", marcar cada uno individualmente
+            self.log_signal.emit("🔍 No se encontró 'Seleccionar todo', marcando individualmente...")
+            checkboxes_marcados = 0
+
+            for selector in SII_SELECTORS['checkbox_factura_individual']:
+                try:
+                    checkboxes = self.driver.find_elements(By.XPATH, selector)
+                    for checkbox in checkboxes:
+                        if checkbox.is_displayed() and checkbox.is_enabled() and not checkbox.is_selected():
+                            try:
+                                # Esperar a que el elemento sea clickeable
+                                self.driver_wait.until(EC.element_to_be_clickable(checkbox))
+                                checkbox.click()
+                                checkboxes_marcados += 1
+                                if checkboxes_marcados % 10 == 0:
+                                    self.log_signal.emit(f"📝 Marcadas {checkboxes_marcados} facturas...")
+                            except Exception as e:
+                                self.log_signal.emit(f"⚠️ Error marcando checkbox individual: {str(e)}")
+                                continue
+                    if checkboxes_marcados > 0:
+                        break
+                except:
+                    continue
+
+            if checkboxes_marcados > 0:
+                self.log_signal.emit(f"✅ Marcadas {checkboxes_marcados} facturas individualmente")
+                time.sleep(2)
+                guardar_screenshot(self.driver, "14_checkboxes_individuales_marcados")
+
+            return checkboxes_marcados
+
+        except Exception as e:
+            self.log_signal.emit(f"⚠️ Error marcando checkboxes: {str(e)}")
+            return 0
+
+    def _contar_checkboxes_marcados_en_vista_actual(self):
+        """Contar checkboxes marcados en la vista actual"""
+        try:
+            contador = 0
+            for selector in SII_SELECTORS['checkbox_factura_individual']:
+                try:
+                    checkboxes = self.driver.find_elements(By.XPATH, selector)
+                    for checkbox in checkboxes:
+                        if checkbox.is_selected():
+                            contador += 1
+                except:
+                    continue
+            return contador
+        except:
+            return 0
+
+    def _hay_facturas_pendientes_en_categoria(self):
+        """Verifica si hay facturas pendientes en la categoría actual (VUELTA AL FLUJO ORIGINAL)"""
+        try:
+            # Esperar un poco a que cargue el contenido inicial
             time.sleep(3)
             
-            facturas_aceptadas = 0
-            
-            # Tomar screenshot inicial
-            guardar_screenshot(self.driver, "10_busqueda_inicial")
-            
-            # Buscar botones de aceptar con más selectores
-            selectores_aceptar = [
-                "//button[contains(text(), 'Aceptar')]",
-                "//button[contains(text(), 'ACEPTAR')]",
-                "//a[contains(text(), 'Aceptar')]",
-                "//input[@value='Aceptar']",
-                "//*[contains(@class, 'btn-aceptar')]",
-                "//*[contains(@ng-click, 'aceptar')]",
-                "//*[contains(@onclick, 'aceptar')]",
-            ]
-            
-            botones_aceptar = []
-            for selector in selectores_aceptar:
-                try:
-                    elementos = self.driver.find_elements(By.XPATH, selector)
-                    botones_aceptar.extend(elementos)
-                except:
-                    continue
-            
-            # Eliminar duplicados
-            botones_unicos = []
-            ids_vistos = set()
-            for boton in botones_aceptar:
-                try:
-                    boton_id = boton.get_attribute("id") or ""
-                    if boton_id not in ids_vistos:
-                        ids_vistos.add(boton_id)
-                        botones_unicos.append(boton)
-                except:
-                    botones_unicos.append(boton)
-            
-            self.log_signal.emit(f"✅ Encontrados {len(botones_unicos)} botones 'Aceptar' únicos")
-            
-            for i, boton in enumerate(botones_unicos):
-                if not self.is_running:
-                    break
-                    
-                try:
-                    if boton.is_displayed() and boton.is_enabled():
-                        self.log_signal.emit(f"🖱️ Intentando aceptar factura {i+1}...")
-                        
-                        # Hacer scroll y hacer clic
-                        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", boton)
-                        time.sleep(1)
-                        
-                        # Tomar screenshot antes de aceptar
-                        guardar_screenshot(self.driver, f"14_antes_aceptar_{i+1}")
-                        
-                        # Intentar clic con JavaScript
-                        self.driver.execute_script("arguments[0].click();", boton)
-                        time.sleep(3)
-                        
-                        # Buscar confirmación
-                        confirmado = self._confirmar_aceptacion_simplificado()
-                        
-                        if confirmado:
-                            facturas_aceptadas += 1
-                            self.log_signal.emit(f"✅ Factura {facturas_aceptadas} aceptada")
-                            # Esperar después de aceptar
-                            time.sleep(2)
-                        else:
-                            self.log_signal.emit(f"⚠️ No se pudo confirmar factura {i+1}")
-                        
-                        time.sleep(2)
-                        
-                except Exception as e:
-                    self.log_signal.emit(f"⚠️ Error con botón {i+1}: {str(e)}")
-                    continue
-            
-            # Resultado final
-            if facturas_aceptadas > 0:
-                mensaje = f"🎉 Proceso completado. Se aceptaron {facturas_aceptadas} factura(s)"
-                self.log_signal.emit(mensaje)
-                self.finished_signal.emit(True, f"{facturas_aceptadas} facturas aceptadas")
-            else:
-                mensaje = "ℹ️ No se encontraron facturas pendientes para aceptar"
-                self.log_signal.emit(mensaje)
-                self.finished_signal.emit(True, "No hay facturas pendientes")
+            for intento in range(3):
+                page_text = self.driver.find_element(By.TAG_NAME, "body").text.lower()
                 
-        except Exception as e:
-            self.log_signal.emit(f"❌ Error buscando facturas: {str(e)}")
-            self.finished_signal.emit(True, f"Login exitoso pero error buscando facturas: {str(e)}")
-    
-    def _confirmar_aceptacion_simplificado(self):
-        """Confirmar simplificado"""
+                # REGLA DE ORO: Si hay rastro de checkboxes, hay facturas
+                for selector in SII_SELECTORS['checkbox_factura_individual']:
+                    try:
+                        checkboxes = self.driver.find_elements(By.XPATH, selector)
+                        if any(cb.is_displayed() for cb in checkboxes):
+                            self.log_signal.emit(f"📊 Detectados {len(checkboxes)} checkboxes de facturas")
+                            return True
+                    except: continue
+
+                # Patrones de texto que indican que hay algo
+                patterns_to_find = ["pendiente", "por aceptar", "nueva", "recibida"]
+                for pattern in patterns_to_find:
+                    if pattern in page_text:
+                        # PERO: si dice "no hay" o "no se encuentran", solo es válido si es el mensaje definitivo
+                        if "no se encuentran" in page_text or "no hay documentos" in page_text or "no hay facturas" in page_text:
+                            if intento < 2: 
+                                break # Saltar a esperar en el siguiente intento
+                            else:
+                                self.log_signal.emit("ℹ️ Confirmado: No hay facturas pendientes")
+                                return False
+                        
+                        self.log_signal.emit(f"✅ Detectada palabra clave: {pattern}")
+                        return True
+                
+                if intento < 2:
+                    self.log_signal.emit(f"⏳ Esperando carga de datos... ({intento+1}/3)")
+                    time.sleep(3)
+            
+            return False
+        except:
+            return False
+
+    def _buscar_boton_acuso_recibo_masivo(self):
+        """Buscar botón de acuso de recibo masivo en la vista actual"""
+        # Buscar usando los selectores existentes de aceptación masiva
+        for selector in SII_SELECTORS['boton_aceptar_masivo']:
+            try:
+                botones = self.driver.find_elements(By.XPATH, selector)
+                for boton in botones:
+                    if boton.is_displayed() and boton.is_enabled():
+                        # Verificar que el texto del botón esté relacionado con acuso de recibo
+                        boton_text = boton.text.lower()
+                        if any(palabra in boton_text for palabra in ['acuso', 'recibo', 'masivo', 'aceptar seleccionados']):
+                            return boton
+            except:
+                continue
+
+        # Buscar variantes específicas de acuso de recibo
+        variantes_acuso = [
+            "//button[contains(., 'Acuso Recibo Masivo')]",
+            "//button[contains(., 'Acuso de Recibo Masivo')]",
+            "//button[contains(., 'Acuso Recibo')]",
+            "//button[contains(., 'Recibo Masivo')]",
+            "//button[contains(., 'Procesar Seleccionados') and contains(., 'Recibo')]",
+        ]
+
+        for selector in variantes_acuso:
+            try:
+                botones = self.driver.find_elements(By.XPATH, selector)
+                for boton in botones:
+                    if boton.is_displayed() and boton.is_enabled():
+                        return boton
+            except:
+                continue
+
+        return None
+
+    def _manejar_modal_confirmacion_acuso_recibo(self):
+        """Manejar el modal de confirmación para acuso de recibo masivo"""
         try:
-            # Esperar breve
-            time.sleep(2)
-            
-            # Buscar botones de confirmación
-            confirm_selectors = [
-                "//button[contains(text(), 'Confirmar')]",
-                "//button[contains(text(), 'Sí')]",
-                "//button[contains(text(), 'SI')]",
-                "//input[@value='Confirmar']",
-                "//input[@value='Sí']",
-                "//input[@value='SI']",
-                "//*[contains(@class, 'btn-confirmar')]",
-                "//*[contains(@ng-click, 'confirmar')]",
+            self.log_signal.emit("📋 Esperando modal de confirmación de acuso de recibo...")
+            time.sleep(3)
+
+            # Esperar explícitamente a que aparezca un modal
+            try:
+                self.driver_wait.until(EC.presence_of_element_located((By.CLASS_NAME, "modal")))
+            except:
+                # Si no encuentra clase modal, intentar con otros selectores comunes
+                try:
+                    self.driver_wait.until(lambda driver: driver.find_elements(By.XPATH, "//div[contains(@class, 'modal') or contains(@class, 'popup') or contains(@class, 'dialog')]"))
+                except:
+                    pass
+
+            # Buscar el modal de confirmación con selectores más amplios
+            modal_selectors = [
+                "//div[contains(@class, 'modal')]",
+                "//div[contains(@class, 'popup') or contains(@class, 'dialog')]",
+                "//div[@role='dialog' or @role='alertdialog']",
+                "//div[contains(@class, 'modal') and contains(., 'confirm')]",
+                "//div[contains(., 'confirm') or contains(., 'Confirm') or contains(., 'recibo') or contains(., 'Recibo')]",
+                "//*[contains(@class, 'window') or contains(@class, 'panel')]"
             ]
-            
-            for selector in confirm_selectors:
+
+            for selector in modal_selectors:
+                try:
+                    modales = self.driver.find_elements(By.XPATH, selector)
+                    for modal in modales:
+                        if modal.is_displayed():
+                            self.log_signal.emit("✅ Modal de confirmación de acuso de recibo encontrado")
+
+                            # Esperar un poco más para que el contenido del modal esté completamente cargado
+                            time.sleep(2)
+
+                            # Paso 0: Buscar dropdowns (select)
+                            select_elements = modal.find_elements(By.TAG_NAME, "select")
+                            for select_elem in select_elements:
+                                try:
+                                    if select_elem.is_displayed():
+                                        self.log_signal.emit("✅ Dropdown de opciones encontrado")
+                                        sel = Select(select_elem)
+                                        
+                                        # Priorizar Opción 2 si se menciona, o Opción 1 como fallback
+                                        opcion2_texto = "Recibo de Mercaderías o Servicios Prestados"
+                                        opcion1_texto = "Acuse de Recibo de Mercaderías y Servicios Ley 19.983"
+                                        
+                                        opcion_encontrada = False
+                                        
+                                        # Intentar Opción 2 primero (Requerimiento actual)
+                                        for option in sel.options:
+                                            if "Recibo de Mercaderías" in option.text or "Servicios Prestados" in option.text:
+                                                sel.select_by_visible_text(option.text)
+                                                self.log_signal.emit(f"✅ Seleccionada Opción 2: {option.text}")
+                                                opcion_encontrada = True
+                                                break
+                                        
+                                        # Si no, intentar Opción 1
+                                        if not opcion_encontrada:
+                                            for option in sel.options:
+                                                if "19.983" in option.text or "19.883" in option.text:
+                                                    sel.select_by_visible_text(option.text)
+                                                    self.log_signal.emit(f"✅ Seleccionada Opción 1: {option.text}")
+                                                    opcion_encontrada = True
+                                                    break
+                                        
+                                        # Si nada funciona, seleccionar índice 2 (que suele ser la Opción 2)
+                                        if not opcion_encontrada and len(sel.options) > 2:
+                                            sel.select_by_index(2)
+                                            self.log_signal.emit(f"✅ Seleccionada Opción por índice 2: {sel.options[2].text}")
+                                            opcion_encontrada = True
+                                        elif not opcion_encontrada and len(sel.options) > 1:
+                                            sel.select_by_index(1)
+                                            self.log_signal.emit(f"✅ Seleccionado primer índice disponible: {sel.options[1].text}")
+                                            opcion_encontrada = True
+                                        
+                                        if opcion_encontrada:
+                                            time.sleep(1)
+                                            break
+                                except Exception as e:
+                                    self.log_signal.emit(f"⚠️ Error al manipular dropdown: {str(e)}")
+                                    continue
+
+                            # Si no hay dropdown, buscar radio buttons que tengan texto asociado con la opción deseada
+                            if not opcion_encontrada:
+                                radios = modal.find_elements(By.XPATH, ".//input[@type='radio' and not(@disabled)]")
+                                for radio in radios:
+                                    try:
+                                        # Buscar label asociado
+                                        label = ""
+                                        try:
+                                            # Intentar por ID
+                                            radio_id = radio.get_attribute("id")
+                                            if radio_id:
+                                                label_elem = modal.find_element(By.XPATH, f".//label[@for='{radio_id}']")
+                                                label = label_elem.text
+                                        except:
+                                            # Intentar por parent o sibling
+                                            try:
+                                                label = self.driver.execute_script("return arguments[0].parentNode.innerText || arguments[0].nextSibling.innerText;", radio)
+                                            except: pass
+                                        
+                                        if "19.983" in label or "19.883" in label:
+                                            self.log_signal.emit(f"✅ Seleccionando radio button por texto: {label}")
+                                            self.driver_wait.until(EC.element_to_be_clickable(radio))
+                                            radio.click()
+                                            opcion_encontrada = True
+                                            break
+                                    except: continue
+
+                            # Si no se encontró la opción específica por texto, seleccionar la primera disponible (Opción 1)
+                            if not opcion_encontrada:
+                                if radios and len(radios) > 0:
+                                    self.log_signal.emit("✅ Seleccionando primera opción del modal (Opción 1)")
+                                    self.driver_wait.until(EC.element_to_be_clickable(radios[0]))
+                                    # Intentar clic normal
+                                    try:
+                                        radios[0].click()
+                                    except:
+                                        self.driver.execute_script("arguments[0].click();", radios[0])
+                                    
+                                    time.sleep(1)
+                                    opcion_encontrada = True
+
+                            # Si no hay radio buttons, buscar la primera opción seleccionable en general
+                            if not opcion_encontrada:
+                                self.log_signal.emit("⚠️ No se encontró la opción específica, seleccionando la primera disponible...")
+                                # Buscar cualquier tipo de opción seleccionable con selectores más específicos
+                                opciones_seleccionables = []
+
+                                # Buscar radio buttons (más específicos)
+                                radios = modal.find_elements(By.XPATH, ".//input[@type='radio' and not(@disabled)]")
+                                opciones_seleccionables.extend(radios)
+
+                                # Buscar checkboxes (más específicos)
+                                checkboxes = modal.find_elements(By.XPATH, ".//input[@type='checkbox' and not(@disabled)]")
+                                opciones_seleccionables.extend(checkboxes)
+
+                                # Buscar labels asociados a inputs seleccionables
+                                label_radios = modal.find_elements(By.XPATH, ".//label[input[@type='radio']]")
+                                opciones_seleccionables.extend(label_radios)
+
+                                label_checks = modal.find_elements(By.XPATH, ".//label[input[@type='checkbox']]")
+                                opciones_seleccionables.extend(label_checks)
+
+                                # Buscar elementos que contengan texto común en opciones de confirmación del SII
+                                elementos_texto = modal.find_elements(By.XPATH,
+                                    ".//span[contains(text(), 'ley') or contains(text(), 'Ley') or contains(text(), '19') or contains(text(), 'opció') or contains(text(), 'Opció') or contains(text(), 'acepto') or contains(text(), 'Acepto') or contains(text(), 'confirmo') or contains(text(), 'Confirmo') or contains(text(), 'recibo') or contains(text(), 'Recibo')]")
+                                opciones_seleccionables.extend(elementos_texto)
+
+                                # Buscar divs o spans que parezcan opciones de selección
+                                posibles_opciones = modal.find_elements(By.XPATH,
+                                    ".//div[contains(@class, 'option') or contains(@class, 'radio') or contains(@class, 'check') or contains(@class, 'item') or contains(@class, 'choice')] | .//span[contains(@class, 'option') or contains(@class, 'radio') or contains(@class, 'check') or contains(@class, 'item') or contains(@class, 'choice')]")
+                                opciones_seleccionables.extend(posibles_opciones)
+
+                                # Seleccionar la primera opción disponible
+                                if len(opciones_seleccionables) >= 1:
+                                    # Si solo hay una opción, seleccionarla
+                                    primera_opcion = opciones_seleccionables[0]
+                                    try:
+                                        self.driver_wait.until(EC.element_to_be_clickable(primera_opcion))
+                                        primera_opcion.click()
+                                        time.sleep(1)
+                                        self.log_signal.emit(f"✅ Primera opción disponible seleccionada: {primera_opcion.text[:50] if hasattr(primera_opcion, 'text') and primera_opcion.text else 'Elemento sin texto'}")
+                                    except:
+                                        # Si falla, intentar con JavaScript
+                                        try:
+                                            self.driver.execute_script("arguments[0].click();", primera_opcion)
+                                            time.sleep(1)
+                                            self.log_signal.emit(f"✅ Primera opción disponible seleccionada con JavaScript: {getattr(primera_opcion, 'text', 'Elemento sin texto')[:50] if hasattr(primera_opcion, 'text') and primera_opcion.text else 'Elemento sin texto'}")
+                                        except:
+                                            self.log_signal.emit("⚠️ No se pudo seleccionar la primera opción disponible")
+                                else:
+                                    self.log_signal.emit("⚠️ No se encontraron opciones disponibles para seleccionar")
+
+                            # Paso 2: Buscar botón de confirmación con selectores más amplios
+                            botones_confirmacion = modal.find_elements(By.XPATH,
+                                ".//button[contains(., 'Confirmar') or contains(., 'Aceptar') or contains(., 'Sí') or contains(., 'Continuar') or contains(., 'Cerrar') or contains(., 'Aceptar Selección') or contains(., 'Acusar Recibo') or contains(., 'Acuso Recibo')] | .//input[@type='button' and (@value='Confirmar' or @value='Aceptar' or @value='Sí' or @value='Continuar')] | .//a[contains(., 'Confirmar') or contains(., 'Aceptar') or contains(., 'Sí') or contains(., 'Continuar')]")
+
+                            for boton in botones_confirmacion:
+                                if boton.is_displayed() and boton.is_enabled():
+                                    self.log_signal.emit("✅ Haciendo clic en botón de confirmación")
+                                    try:
+                                        self.driver_wait.until(EC.element_to_be_clickable(boton))
+                                        boton.click()
+                                    except:
+                                        # Si falla, intentar con JavaScript
+                                        self.driver.execute_script("arguments[0].click();", boton)
+
+                                    time.sleep(3)
+                                    
+                                    # --- MEJORADO: Manejar posible segundo modal de confirmación ("Está seguro?") ---
+                                    try:
+                                        self.log_signal.emit("📋 Verificando si aparece un segundo modal de confirmación...")
+                                        
+                                        # Esperar a que el primer modal desaparezca o aparezca uno nuevo
+                                        for _ in range(3): # Reintentar búsqueda de segundo modal
+                                            time.sleep(2)
+                                            modales_segundos = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'modal') and contains(@style, 'block')] | //div[contains(@class, 'modal-dialog')] | //div[@role='dialog']")
+                                            
+                                            modal_encontrado = False
+                                            for smodal in modales_segundos:
+                                                if smodal.is_displayed():
+                                                    # Verificar si es el modal de confirmación ("está seguro", "desea continuar", etc)
+                                                    texto_modal = smodal.text.lower()
+                                                    if any(word in texto_modal for word in ['seguro', 'desea', 'continuar', 'ley', '19.983', '19.883']):
+                                                        self.log_signal.emit(f"✅ Segundo modal detectado: '{smodal.text[:30]}...'")
+                                                        
+                                                        # Buscar botón de confirmación en este modal
+                                                        botones_finales = smodal.find_elements(By.XPATH, ".//button[contains(., 'Confirmar') or contains(., 'Aceptar') or contains(., 'Sí') or contains(., 'Continuar')]")
+                                                        for btn_final in botones_finales:
+                                                            if btn_final.is_displayed():
+                                                                self.log_signal.emit("✅ Haciendo clic en botón final de confirmación")
+                                                                self.driver_wait.until(EC.element_to_be_clickable(btn_final))
+                                                                self.driver.execute_script("arguments[0].click();", btn_final)
+                                                                time.sleep(5)
+
+                                                                # --- NUEVO: Manejar tercer modal de resultado final ("Operación finalizada") ---
+                                                                try:
+                                                                    self.log_signal.emit("📋 Verificando si aparece un modal de resultado final...")
+                                                                    time.sleep(3)
+                                                                    modales_finales = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'modal') and contains(@style, 'block')] | //div[contains(@class, 'modal-dialog')] | //div[@role='dialog']")
+                                                                    for modal_final in modales_finales:
+                                                                        if modal_final.is_displayed():
+                                                                            self.log_signal.emit("✅ Modal de éxito detectado, cerrando...")
+                                                                            botones_cerrar = modal_final.find_elements(By.XPATH, ".//button[contains(., 'Cerrar') or contains(., 'Aceptar') or contains(., 'Finalizar')]")
+                                                                            for btn_cerrar in botones_cerrar:
+                                                                                if btn_cerrar.is_displayed():
+                                                                                    self.driver_wait.until(EC.element_to_be_clickable(btn_cerrar))
+                                                                                    self.driver.execute_script("arguments[0].click();", btn_cerrar)
+                                                                                    break
+                                                                except: pass
+
+                                                                self.log_signal.emit("🎉 FACTURAS ACEPTADAS EXITOSAMENTE")
+                                                                time.sleep(2)
+                                                                return True
+                                                    modal_encontrado = True
+                                            
+                                            if not modal_encontrado:
+                                                # Si no hay modal visible, quizás ya terminó o el anterior era el único
+                                                break
+                                    except Exception as e:
+                                        self.log_signal.emit(f"ℹ️ No se detectó segundo modal o error al manejararlo: {str(e)}")
+
+                                    return True
+
+                            # Si no hay botones en el modal, buscar fuera del modal (caso común en SPAs)
+                            botones_fuera_modal = self.driver.find_elements(By.XPATH,
+                                "//button[contains(., 'Confirmar') or contains(., 'Aceptar') or contains(., 'Sí') or contains(., 'Continuar') or contains(., 'Cerrar') or contains(., 'Aceptar Selección') or contains(., 'Acusar Recibo') or contains(., 'Acuso Recibo')] | //input[@type='button' and (@value='Confirmar' or @value='Aceptar' or @value='Sí' or @value='Continuar')]")
+
+                            for boton in botones_fuera_modal:
+                                if boton.is_displayed() and boton.is_enabled():
+                                    self.log_signal.emit("✅ Haciendo clic en botón de confirmación (fuera del modal)")
+                                    try:
+                                        self.driver_wait.until(EC.element_to_be_clickable(boton))
+                                        boton.click()
+                                    except:
+                                        self.driver.execute_script("arguments[0].click();", boton)
+
+                                    time.sleep(5)
+                                    return True
+
+                except Exception as e:
+                    self.log_signal.emit(f"⚠️ Error buscando modal con selector {selector}: {str(e)}")
+                    continue
+
+            # Si no se encuentra modal específico, buscar botones directamente
+            for selector in SII_SELECTORS['confirmacion_aceptar_masivo']:
                 try:
                     botones = self.driver.find_elements(By.XPATH, selector)
                     for boton in botones:
-                        if boton.is_displayed():
-                            self.driver.execute_script("arguments[0].click();", boton)
-                            time.sleep(2)
+                        if boton.is_displayed() and boton.is_enabled():
+                            self.log_signal.emit("✅ Botón de confirmación encontrado (sin modal)")
+                            self.driver_wait.until(EC.element_to_be_clickable(boton))
+                            boton.click()
+                            time.sleep(5)
                             return True
                 except:
                     continue
-            
-            # Si no encuentra confirmación, ver si hay diálogo modal
+
+            self.log_signal.emit("ℹ️ No se encontró modal de confirmación, asumiendo éxito...")
+            return True
+
+        except Exception as e:
+            self.log_signal.emit(f"⚠️ Error manejando confirmación de acuso de recibo: {str(e)}")
+            return False
+
+    def _buscar_boton_aceptar_masivo_en_vista_actual(self):
+        """Buscar botón de aceptación masiva en la vista actual"""
+        for selector in SII_SELECTORS['boton_aceptar_masivo']:
             try:
-                # Buscar modales
-                modales = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'modal')]")
-                for modal in modales:
-                    if modal.is_displayed():
-                        # Buscar cualquier botón en el modal
-                        botones_modal = modal.find_elements(By.TAG_NAME, "button")
-                        for boton in botones_modal:
-                            if boton.is_displayed() and boton.text.strip():
-                                self.driver.execute_script("arguments[0].click();", boton)
-                                time.sleep(2)
-                                return True
+                botones = self.driver.find_elements(By.XPATH, selector)
+                for boton in botones:
+                    if boton.is_displayed() and boton.is_enabled():
+                        return boton
             except:
-                pass
-            
+                continue
+
+        # Buscar variantes del botón
+        variantes_botones = [
+            "//button[contains(., 'Acuso Recibo')]",
+            "//button[contains(., 'Aceptar Documentos')]",
+            "//button[contains(., 'Procesar') and contains(., 'seleccionados')]",
+            "//button[contains(., 'Acusar Recibido')]",
+            "//button[contains(., 'Recibido')]",
+        ]
+
+        for selector in variantes_botones:
+            try:
+                botones = self.driver.find_elements(By.XPATH, selector)
+                for boton in botones:
+                    if boton.is_displayed() and boton.is_enabled():
+                        return boton
+            except:
+                continue
+
+        return None
+
+    def _manejar_modal_confirmacion_aceptacion(self):
+        """Manejar el modal de confirmación para aceptación masiva"""
+        try:
+            self.log_signal.emit("📋 Esperando modal de confirmación...")
+            time.sleep(3)
+
+            # Buscar el modal
+            for selector in [
+                "//div[contains(@class, 'modal')]",
+                "//div[@role='dialog']",
+                "//div[contains(@class, 'popup')]"
+            ]:
+                try:
+                    modales = self.driver.find_elements(By.XPATH, selector)
+                    for modal in modales:
+                        if modal.is_displayed():
+                            self.log_signal.emit("✅ Modal encontrado")
+                            
+                            # Intentar manejar dropdowns primero
+                            opcion_encontrada = False
+                            selects = modal.find_elements(By.TAG_NAME, "select")
+                            for s in selects:
+                                try:
+                                    if s.is_displayed():
+                                        sel = Select(s)
+                                        if len(sel.options) > 1:
+                                            # Priorizar Ley 19.983
+                                            for opt in sel.options:
+                                                if "19.983" in opt.text:
+                                                    sel.select_by_visible_text(opt.text)
+                                                    opcion_encontrada = True
+                                                    break
+                                            if not opcion_encontrada:
+                                                sel.select_by_index(1)
+                                                opcion_encontrada = True
+                                        if opcion_encontrada: break
+                                except: continue
+
+                            # Si no hay select, buscar radios
+                            if not opcion_encontrada:
+                                radios = modal.find_elements(By.XPATH, ".//input[@type='radio' and not(@disabled)]")
+                                if radios and len(radios) > 0:
+                                    self.driver_wait.until(EC.element_to_be_clickable(radios[0]))
+                                    radios[0].click()
+                                    opcion_encontrada = True
+
+                            # Buscar botón de confirmación
+                            botones = modal.find_elements(By.XPATH, ".//button[contains(., 'Confirmar') or contains(., 'Aceptar') or contains(., 'Sí')]")
+                            for boton in botones:
+                                if boton.is_displayed() and boton.is_enabled():
+                                    self.log_signal.emit("✅ Confirmando modal")
+                                    self.driver_wait.until(EC.element_to_be_clickable(boton))
+                                    boton.click()
+                                    time.sleep(5)
+                                    return True
+                except: continue
+            return True # Asumir éxito si el modal desapareció o no se encontró
+        except Exception as e:
+            self.log_signal.emit(f"⚠️ Error en modal: {str(e)}")
             return False
-            
-        except:
-            return False
-    
+
     def stop(self):
         """Detener el proceso"""
         self.is_running = False
@@ -986,18 +1602,18 @@ class SIIAutomatorWorker(QThread):
 
 class SIIAutomator:
     """Clase principal para la automatización SII"""
-    
+
     def __init__(self):
         self.worker = None
-        
+
     def iniciar_proceso(self, rut_empresa, rut_usuario, clave, headless=False):
         """Iniciar el proceso de automatización"""
         if self.worker and self.worker.isRunning():
             return None
-            
+
         self.worker = SIIAutomatorWorker(rut_empresa, rut_usuario, clave, headless)
         return self.worker
-    
+
     def detener_proceso(self):
         """Detener el proceso en ejecución"""
         if self.worker and self.worker.isRunning():
@@ -1008,5 +1624,3 @@ class SIIAutomator:
                 self.worker.wait()
             return True
         return False
-
-

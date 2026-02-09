@@ -1,8 +1,9 @@
 """
-Configuración para el módulo SII
+Configuración actualizada para el módulo SII
 """
+from selenium.webdriver.common.by import By
 
-# Configuración de URLs del SII
+# Configuración de URLs del SII (actualizadas 2026)
 SII_URLS = {
     'portal': 'https://misiir.sii.cl/cgi_misii/siihome.cgi',
     'login': 'https://zeusr.sii.cl//AUT2000/InicioAutenticacion/IngresoRutClave.html?https://misiir.sii.cl/cgi_misii/siihome.cgi',
@@ -10,63 +11,45 @@ SII_URLS = {
     'compras': 'https://www4.sii.cl/consdcgi/STC/stc0001i',
 }
 
-# Selectores para elementos del SII
+# Selectores optimizados para la nueva interfaz del SII
 SII_SELECTORS = {
-    'boton_ingresar': [
-        "//a[contains(text(), 'Ingresar a Mi SII')]",
-        "//a[contains(@href, 'siiautenticacion')]",
-    ],
     'campo_rut': [
+        (By.ID, "rutcntr"),
+        (By.NAME, "rutcntr"),
         (By.ID, "rut"),
         (By.NAME, "rut"),
     ],
     'campo_clave': [
         (By.ID, "clave"),
         (By.NAME, "clave"),
+        (By.XPATH, "//input[@type='password']"),
     ],
     'campo_dv': [
+        (By.ID, "dvcntr"),
+        (By.NAME, "dvcntr"),
         (By.ID, "dv"),
         (By.NAME, "dv"),
     ],
     'boton_login': [
         (By.ID, "bt_ingresar"),
         (By.NAME, "bt_ingresar"),
+        (By.XPATH, "//button[@type='submit']"),
     ],
     'facturas_pendientes': [
-        "//*[contains(text(), 'Pendientes')]",
-        "//*[contains(@class, 'pendiente')]",
+        "//button[contains(., 'Pendientes')]",
+        "//a[contains(., 'Pendientes')]",
     ],
     'boton_aceptar': [
-        "//button[contains(text(), 'Aceptar')]",
-        "//button[contains(@class, 'aceptar')]",
-    ],
-    'menu_facturas': [
-        "//a[contains(text(), 'Factura Electrónica')]",
-        "//a[contains(@href, 'factura')]",
-        "//li[contains(text(), 'Factura')]/a",
-    ],
-    'link_registro_compras': [
-        "//a[contains(text(), 'Registro de Compras y Ventas')]",
-        "//a[contains(@href, 'consdcvinternetui')]",
-    ],
-    'elemento_post_login': [
-        (By.ID, "user-info"),
-        (By.CLASS_NAME, "welcome-user"),
-        "//*[contains(text(), 'Bienvenido')]",
+        "//button[contains(., 'Aceptar')]",
+        "//button[contains(., 'aceptar')]",
     ],
 }
 
-# Configuración de tiempos de espera (segundos)
+# Tiempos de espera optimizados (segundos)
 TIMEOUTS = {
-    'page_load': 10,
-    'element_wait': 15,
-    'login_wait': 5,
-    'action_delay': 2,
-}
-
-# Patrones para identificar facturas
-FACTURA_PATTERNS = {
-    'texto': ['factura', 'dte', 'documento', 'comprobante'],
-    'estado': ['pendiente', 'por aceptar', 'validar', 'revisar'],
-    'clases': ['fila-factura', 'item-dte', 'documento-item'],
+    'page_load': 20,
+    'element_wait': 30,
+    'login_wait': 10,
+    'action_delay': 3,
+    'between_actions': 2,
 }

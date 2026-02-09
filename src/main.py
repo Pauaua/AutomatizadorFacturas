@@ -53,33 +53,11 @@ except ImportError:
     sys.exit(1)
 
 # ================= IMPORTAR SIIAutomator =================
-print("🔍 Intentando importar SIIAutomator...")
+print("🔍 Importando SIIAutomator...")
 
 try:
-    # Método más simple: usar importlib
-    import importlib.util
-    
-    # Especificar el módulo
-    spec = importlib.util.spec_from_file_location("sii_automator_module", SII_FILE)
-    sii_module = importlib.util.module_from_spec(spec)
-    
-    # Ejecutar el módulo en el contexto actual para que tenga acceso a las dependencias
-    sys.modules['sii_automator_module'] = sii_module
-    spec.loader.exec_module(sii_module)
-    
-    # Obtener la clase
-    SIIAutomator = getattr(sii_module, 'SIIAutomator', None)
-    
-    if SIIAutomator:
-        print("✅ SIIAutomator importado exitosamente")
-    else:
-        print("❌ Clase SIIAutomator no encontrada en el módulo")
-        print("Funciones/Clases disponibles:")
-        for attr_name in dir(sii_module):
-            if not attr_name.startswith('_'):
-                print(f"  - {attr_name}")
-        sys.exit(1)
-
+    from core.sii_automator import SIIAutomator
+    print("✅ SIIAutomator importado exitosamente")
 except Exception as e:
     print(f"❌ Error importando SIIAutomator: {e}")
     import traceback
@@ -93,7 +71,7 @@ try:
                                  QTextEdit, QCheckBox, QGroupBox, QMessageBox,
                                  QProgressBar, QSplitter, QFrame)
     from PyQt5.QtCore import Qt, pyqtSignal
-    from PyQt5.QtGui import QFont, QPalette, QColor
+    from PyQt5.QtGui import QFont, QPalette, QColor, QPixmap, QIcon
     print("✅ Componentes PyQt5 importados exitosamente")
 except ImportError as e:
     print(f"❌ Error importando componentes PyQt5: {e}")
@@ -116,8 +94,8 @@ class SIIAutomatorGUI(QMainWindow):
         self.setWindowTitle("Automatizador SII - Aceptación de Facturas")
         self.setGeometry(100, 100, 900, 700)
         
-        # Establecer estilo oscuro moderno
-        self.set_dark_theme()
+        # Establecer tema personalizado
+        self.set_custom_theme()
         
         # Widget central
         central_widget = QWidget()
@@ -126,17 +104,32 @@ class SIIAutomatorGUI(QMainWindow):
         # Layout principal
         main_layout = QVBoxLayout(central_widget)
         
+        # Logo
+        self.logo_label = QLabel()
+        self.logo_label.setAlignment(Qt.AlignCenter)
+        logo_path = os.path.join(SCRIPT_DIR, "assets", "logo.png")
+        if os.path.exists(logo_path):
+            pixmap = QPixmap(logo_path)
+            # Escalar logo si es muy grande para la cabecera
+            if pixmap.width() > 300:
+                pixmap = pixmap.scaledToWidth(300, Qt.SmoothTransformation)
+            self.logo_label.setPixmap(pixmap)
+            
+            # Establecer ícono de la ventana
+            self.setWindowIcon(QIcon(logo_path))
+        main_layout.addWidget(self.logo_label)
+
         # Título
-        title_label = QLabel("🔄 Automatizador SII")
-        title_label.setFont(QFont("Arial", 18, QFont.Bold))
+        title_label = QLabel("Automatizador SII")
+        title_label.setFont(QFont("Segoe UI", 22, QFont.Bold))
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("color: #4FC3F7; margin: 10px;")
+        title_label.setStyleSheet("color: #365ca3; margin-bottom: 5px;")
         main_layout.addWidget(title_label)
         
         # Separador
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
-        separator.setStyleSheet("color: #555;")
+        separator.setStyleSheet("background-color: #a3b4cb; min-height: 1px; border: none;")
         main_layout.addWidget(separator)
         
         # Splitter para dividir la ventana
@@ -153,24 +146,24 @@ class SIIAutomatorGUI(QMainWindow):
         
         # RUT Empresa
         rut_empresa_layout = QHBoxLayout()
-        rut_empresa_label = QLabel("RUT Empresa:*")
+        rut_empresa_label = QLabel("RUT Empresa:")
         rut_empresa_label.setFixedWidth(120)
         self.rut_empresa_input = QLineEdit()
         self.rut_empresa_input.setPlaceholderText("Ej: 12.123.456-7")
         rut_empresa_layout.addWidget(rut_empresa_label)
         rut_empresa_layout.addWidget(self.rut_empresa_input)
-        cred_layout.addLayout(rut_empresa_layout)
-        
+        cred_layout.addLayout(rut_empresa_layout)   
+
         # RUT Usuario
         rut_usuario_layout = QHBoxLayout()
-        rut_usuario_label = QLabel("RUT Usuario:")
+        rut_usuario_label = QLabel("RUT Usuario:*")
         rut_usuario_label.setFixedWidth(120)
         self.rut_usuario_input = QLineEdit()
-        self.rut_usuario_input.setPlaceholderText("Opcional - Solo si es diferente al usuario")
+        self.rut_usuario_input.setPlaceholderText("Tu RUT personal")
         rut_usuario_layout.addWidget(rut_usuario_label)
         rut_usuario_layout.addWidget(self.rut_usuario_input)
         cred_layout.addLayout(rut_usuario_layout)
-        
+
         # Clave
         clave_layout = QHBoxLayout()
         clave_label = QLabel("Clave SII:*")
@@ -220,9 +213,6 @@ class SIIAutomatorGUI(QMainWindow):
             QPushButton:hover {
                 background-color: #45a049;
             }
-            QPushButton:disabled {
-                background-color: #666;
-            }
         """)
         
         self.stop_btn = QPushButton("⏹️ Detener")
@@ -238,9 +228,6 @@ class SIIAutomatorGUI(QMainWindow):
             }
             QPushButton:hover {
                 background-color: #da190b;
-            }
-            QPushButton:disabled {
-                background-color: #666;
             }
         """)
         
@@ -294,30 +281,95 @@ class SIIAutomatorGUI(QMainWindow):
         main_layout.addWidget(splitter)
         
         # Estado
-        self.status_label = QLabel("👋 Listo para comenzar")
+        self.status_label = QLabel("✨🦄 <i>Développé par une unicornia très compétente</i> © 2026")
         self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setStyleSheet("color: #888; padding: 5px;")
+        self.status_label.setStyleSheet("color: #365ca3; padding: 5px;")
         main_layout.addWidget(self.status_label)
         
-    def set_dark_theme(self):
-        """Establecer tema oscuro"""
-        dark_palette = QPalette()
-        dark_palette.setColor(QPalette.Window, QColor(53, 53, 53))
-        dark_palette.setColor(QPalette.WindowText, Qt.white)
-        dark_palette.setColor(QPalette.Base, QColor(35, 35, 35))
-        dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-        dark_palette.setColor(QPalette.ToolTipBase, QColor(25, 25, 25))
-        dark_palette.setColor(QPalette.ToolTipText, Qt.white)
-        dark_palette.setColor(QPalette.Text, Qt.white)
-        dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
-        dark_palette.setColor(QPalette.ButtonText, Qt.white)
-        dark_palette.setColor(QPalette.BrightText, Qt.red)
-        dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
-        dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-        dark_palette.setColor(QPalette.HighlightedText, QColor(35, 35, 35))
+    def set_custom_theme(self):
+        """Establecer tema personalizado basado en requerimientos del usuario"""
+        # Paleta de colores
+        COLOR_FONDO = "#d4dce4"
+        COLOR_LETRAS = "#365ca3"
+        COLOR_DETALLES = "#a3b4cb"
         
-        self.setPalette(dark_palette)
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(COLOR_FONDO))
+        palette.setColor(QPalette.WindowText, QColor(COLOR_LETRAS))
+        palette.setColor(QPalette.Base, Qt.white)
+        palette.setColor(QPalette.AlternateBase, QColor(COLOR_DETALLES))
+        palette.setColor(QPalette.ToolTipBase, Qt.white)
+        palette.setColor(QPalette.ToolTipText, QColor(COLOR_LETRAS))
+        palette.setColor(QPalette.Text, QColor(COLOR_LETRAS))
+        palette.setColor(QPalette.Button, QColor(COLOR_DETALLES))
+        palette.setColor(QPalette.ButtonText, QColor(COLOR_LETRAS))
+        palette.setColor(QPalette.BrightText, Qt.red)
+        palette.setColor(QPalette.Link, QColor(COLOR_LETRAS))
+        palette.setColor(QPalette.Highlight, QColor(COLOR_LETRAS))
+        palette.setColor(QPalette.HighlightedText, Qt.white)
         
+        self.setPalette(palette)
+        
+        # Estilos específicos para widgets mediante CSS
+        self.setStyleSheet(f"""
+            QMainWindow {{
+                background-color: {COLOR_FONDO};
+            }}
+            QGroupBox {{
+                border: 2px solid {COLOR_DETALLES};
+                border-radius: 8px;
+                margin-top: 15px;
+                font-weight: bold;
+                color: {COLOR_LETRAS};
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px;
+            }}
+            QLineEdit {{
+                padding: 8px;
+                border: 1px solid {COLOR_DETALLES};
+                border-radius: 4px;
+                background-color: white;
+                color: {COLOR_LETRAS};
+            }}
+            QPushButton {{
+                background-color: {COLOR_DETALLES};
+                color: {COLOR_LETRAS};
+                border: none;
+                padding: 10px;
+                border-radius: 5px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #c0cedf;
+            }}
+            QPushButton:pressed {{
+                background-color: #90a0b8;
+            }}
+            QTextEdit {{
+                background-color: white;
+                color: {COLOR_LETRAS};
+                border: 1px solid {COLOR_DETALLES};
+                border-radius: 4px;
+            }}
+            QProgressBar {{
+                border: 1px solid {COLOR_DETALLES};
+                border-radius: 5px;
+                text-align: center;
+                background-color: white;
+                color: {COLOR_LETRAS};
+            }}
+            QProgressBar::chunk {{
+                background-color: #4CAF50;
+                width: 20px;
+            }}
+            QCheckBox {{
+                color: {COLOR_LETRAS};
+            }}
+        """)
+
     def iniciar_proceso(self):
         """Iniciar el proceso de automatización"""
         # Validar campos
