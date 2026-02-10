@@ -1,0 +1,161 @@
+<html><head>
+      <meta charset="utf-8">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <meta name="description" content="">
+      <meta name="author" content="">
+      <title>Autenticación</title>
+      <!-- librerias que incluyen lo necesario para operar responsivo -->
+      <script type="text/javascript" src="https://zeusr.sii.cl/AUT2000/js/loadBarra.js"></script><script type="text/javascript" src="https://zeusr.sii.cl/admin/responsive_barranav.js"></script><link href="https://zeusr.sii.cl/admin/responsive/css/bootstrap-sii.min.css" rel="stylesheet">
+<link href="https://zeusr.sii.cl/admin/responsive/css/general.css" rel="stylesheet">
+<link href="https://zeusr.sii.cl/admin/responsive/css/estilos.css" rel="stylesheet">
+
+
+      <script type="text/javascript">
+      
+               if (typeof AUToff != 'undefined') {
+               if (AUToff=='true'){
+                              window.location.href = 'http://www.sii.cl/pagina/actualizada/suspension/hpi_suspension.htm';
+               }
+               }
+
+        function callOne() {
+		var ref="";
+ 		var arr=(location + '').split('?');
+                if (arr.length>1) {
+                        for(i=1;i<arr.length;i++) { 
+                                if (i > 1)
+                                        ref = ref + "?" +  arr[i];
+                                else
+                                        ref = ref + arr[i];
+                        }
+
+			ref = ref.replace(/#/g, '-GATO-')
+		} 
+                window.location.href= "/cgi_AUT2000/InitClaveUnicaP.cgi?code=411&REF="+ref;
+        };
+
+      </script>
+
+
+<style type="text/css">
+@media (min-width: 320px){
+    #blockColorblindContent{
+      display: none;
+    }
+    .web-sii.cuerpo {
+        background-color: #eee;
+        padding: 45px 0 0;
+        margin-top: 55px;
+    }
+    .web-sii.cuerpo .container {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+    #autenticacion_contribuyentes{
+       width: 100%;
+       float: left;
+       display: block;
+    }
+    #autenticacion_contribuyentes h1{
+    	font-size: 22px;
+    	text-align: center;
+    	color: #002a46;
+    	font-weight: bold;
+    	margin-bottom: 20px;
+    	margin-top: 0;
+    }
+    #autenticacion_contribuyentes form{
+        width: 300px;
+        display: block;
+        margin: 0 auto 0;
+    }
+    #autenticacion_contribuyentes #auth_top{
+        width: 300px;
+        height: 70px;
+    }
+    #autenticacion_contribuyentes #auth_bottom{
+        display: block;
+        width: 300px;
+        background-color: #ffffff;
+        padding: 20px 24px 10px;
+	box-shadow: 2px 2px 7px #ccc;
+	-moz-box-shadow: 2px 2px 7px #ccc;
+	-webkit-box-shadow: 2px 2px 7px #ccc;
+    	z-index: 2;
+    }
+    #autenticacion_contribuyentes .auth_left{
+        width: 300px;
+        height: 70px;
+        float: left;
+        display: block;
+        background-color: #002a46;
+        cursor: pointer;
+	box-shadow: 2px 2px 7px #ccc;
+	-moz-box-shadow: 2px 2px 7px #ccc;
+	-webkit-box-shadow: 2px 2px 7px #ccc;
+    	z-index: 1;
+    }
+    #autenticacion_contribuyentes .auth_left img{
+        display: block;
+        margin: 13px auto 0;
+        width: 130px;
+    }
+    #autenticacion_contribuyentes .auth_right{
+        width: 150px;
+        height: 70px;
+        display: block;
+        float: left;
+    }
+    #autenticacion_contribuyentes .form-control{
+        border: 1px solid #ccc;
+        width: 100%;
+        height: 35px;
+    }
+    #autenticacion_contribuyentes .form-control::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+      color: #bbb;
+      opacity: 1; /* Firefox */
+      font-weight: normal ;
+    }
+    #autenticacion_contribuyentes .form-control:-ms-input-placeholder { /* Internet Explorer 10-11 */
+      color: #bbb;
+      font-weight: normal;
+    }
+    #autenticacion_contribuyentes .form-control::-ms-input-placeholder { /* Microsoft Edge */
+      color: #bbb;
+      font-weight: normal;
+    }
+    #autenticacion_contribuyentes #rutcntr.form-control{
+        margin-bottom: 15px;
+    }
+    #autenticacion_contribuyentes label{
+        font-size: 14px;
+        color: #002a46;
+        margin-bottom: 3px;
+    }
+    #autenticacion_contribuyentes #clave.form-control{
+        margin-bottom: 30px;
+    }
+    #autenticacion_contribuyentes #bt_ingresar{
+        text-transform: uppercase;
+        font-weight: bold;
+        font-size: 14px;
+        margin: 0px auto 5px;
+        background-color: #002c48;
+        border: none;
+        display: block;
+        width: 100%;
+        padding: 8px;
+        border-radius: 0px;
+    }
+    #autenticacion_contribuyentes #bt_ingresar:hover{
+        background-color: #eb510d;
+    }
+    #autenticacion_contribuyentes #bt_ingresar:focus{
+        color: #fff;
+    }
+    #autenticacion_contribuyentes #bt_ingresar:visited{
+        color: #fff;
+    }
+    #autenticacion_contribuyentes #bt_ingresar img{
+        width

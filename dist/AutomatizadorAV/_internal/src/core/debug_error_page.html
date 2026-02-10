@@ -1,0 +1,139 @@
+<html ng-app="sampleMin" lang="es" class="ng-scope"><head><style type="text/css">[uib-typeahead-popup].dropdown-menu{display:block;}</style><style type="text/css">.uib-time input{width:50px;}</style><style type="text/css">[uib-tooltip-popup].tooltip.top-left > .tooltip-arrow,[uib-tooltip-popup].tooltip.top-right > .tooltip-arrow,[uib-tooltip-popup].tooltip.bottom-left > .tooltip-arrow,[uib-tooltip-popup].tooltip.bottom-right > .tooltip-arrow,[uib-tooltip-popup].tooltip.left-top > .tooltip-arrow,[uib-tooltip-popup].tooltip.left-bottom > .tooltip-arrow,[uib-tooltip-popup].tooltip.right-top > .tooltip-arrow,[uib-tooltip-popup].tooltip.right-bottom > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.top-left > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.top-right > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.bottom-left > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.bottom-right > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.left-top > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.left-bottom > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.right-top > .tooltip-arrow,[uib-tooltip-html-popup].tooltip.right-bottom > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.top-left > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.top-right > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.bottom-left > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.bottom-right > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.left-top > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.left-bottom > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.right-top > .tooltip-arrow,[uib-tooltip-template-popup].tooltip.right-bottom > .tooltip-arrow,[uib-popover-popup].popover.top-left > .arrow,[uib-popover-popup].popover.top-right > .arrow,[uib-popover-popup].popover.bottom-left > .arrow,[uib-popover-popup].popover.bottom-right > .arrow,[uib-popover-popup].popover.left-top > .arrow,[uib-popover-popup].popover.left-bottom > .arrow,[uib-popover-popup].popover.right-top > .arrow,[uib-popover-popup].popover.right-bottom > .arrow,[uib-popover-html-popup].popover.top-left > .arrow,[uib-popover-html-popup].popover.top-right > .arrow,[uib-popover-html-popup].popover.bottom-left > .arrow,[uib-popover-html-popup].popover.bottom-right > .arrow,[uib-popover-html-popup].popover.left-top > .arrow,[uib-popover-html-popup].popover.left-bottom > .arrow,[uib-popover-html-popup].popover.right-top > .arrow,[uib-popover-html-popup].popover.right-bottom > .arrow,[uib-popover-template-popup].popover.top-left > .arrow,[uib-popover-template-popup].popover.top-right > .arrow,[uib-popover-template-popup].popover.bottom-left > .arrow,[uib-popover-template-popup].popover.bottom-right > .arrow,[uib-popover-template-popup].popover.left-top > .arrow,[uib-popover-template-popup].popover.left-bottom > .arrow,[uib-popover-template-popup].popover.right-top > .arrow,[uib-popover-template-popup].popover.right-bottom > .arrow{top:auto;bottom:auto;left:auto;right:auto;margin:0;}[uib-popover-popup].popover,[uib-popover-html-popup].popover,[uib-popover-template-popup].popover{display:block !important;}</style><style type="text/css">.uib-datepicker-popup.dropdown-menu{display:block;float:none;margin:0;}.uib-button-bar{padding:10px 9px 2px;}</style><style type="text/css">.uib-position-measure{display:block !important;visibility:hidden !important;position:absolute !important;top:-9999px !important;left:-9999px !important;}.uib-position-scrollbar-measure{position:absolute !important;top:-9999px !important;width:50px !important;height:50px !important;overflow:scroll !important;}.uib-position-body-scrollbar-measure{overflow:scroll !important;}</style><style type="text/css">.uib-datepicker .uib-title{width:100%;}.uib-day button,.uib-month button,.uib-year button{min-width:100%;}.uib-left,.uib-right{width:100%}</style><style type="text/css">.ng-animate.item:not(.left):not(.right){-webkit-transition:0s ease-in-out left;transition:0s ease-in-out left}</style><style type="text/css">@charset "UTF-8";[ng\:cloak],[ng-cloak],[data-ng-cloak],[x-ng-cloak],.ng-cloak,.x-ng-cloak,.ng-hide:not(.ng-hide-animate){display:none !important;}ng\:form{display:block;}.ng-animate-shim{visibility:hidden;}.ng-anchor{position:absolute;}</style><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1"><title>::.SII - Consulta Registro Compra Venta</title><script type="text/javascript" src="/consdcvinternetui/ruxitagentjs_ICANVfghqrux_10327251022105625.js" data-dtconfig="app=0b9aafb585ceb48d|ssc=1|cssm=s|owasp=1|featureHash=ICANVfghqrux|rdnt=1|uxrgce=1|cuc=3hq5c4eu|mel=100000|expw=1|md=mdcc1=a#conAutenticacion span.id,mdcc2=cNETSCAPE_LIVEWIRE.rut|lastModification=1765276038485|tp=500,50,0|srbbv=2|agentUri=/consdcvinternetui/ruxitagentjs_ICANVfghqrux_10327251022105625.js|reportUrl=/consdcvinternetui/rb_bf05726fov|rid=RID_-1379025090|rpid=-1653855754|domain=sii.cl"></script><script src="https://zeusr.sii.cl/admin/responsive_barranav.js" data-remove="false"></script><link href="https://zeusr.sii.cl/admin/responsive/css/bootstrap-sii.min.css" rel="stylesheet">
+<link href="https://zeusr.sii.cl/admin/responsive/css/general.css" rel="stylesheet">
+<link href="https://zeusr.sii.cl/admin/responsive/css/estilos.css" rel="stylesheet">
+<script language="javascript" src="https://zeus.sii.cl/admin/js/certifica_path.js" data-remove="false"></script><style>body { 
+padding-right: 0 !important 
+}
+html {
+  overflow-y: scroll !important;
+}
+
+/*Para no mostrar la caja de filtro en datatables de los detalles*/
+.dataTables_filter { visibility: hidden !important;}   
+  
+/* modal*/
+.modal-backdrop {
+ 
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1040;
+  background-color: #000000;
+}
+
+.modal-backdrop, .modal-backdrop.fade.in {
+  opacity: 0.5;
+  filter: alpha(opacity=50);
+}
+
+/*para selecciona un detalle */
+#tableCompra  tbody tr:hover, #tableVenta tbody tr:hover , 
+#tableDetaObsCOMPRA tbody tr:hover, #tableDetaObsVENTA tbody tr:hover,
+#tableRsmnObs tbody tr:hover, #tableDetaObsVENTA tbody tr:hover{
+    /*background-color: #e2ebff;*/
+    cursor: pointer
+}
+
+#tableCompra  tbody tr.selected , #tableVenta  tbody tr.selected,
+#tableDetaObsCOMPRA tbody tr.selected, #tableDetaObsVENTA tbody tr.selected,
+#tableRsmnObs tbody tr.selected{
+    color: white;
+    font-weight:bold;
+    background-color: #78a5cc /*eb510d*/;
+}
+.dataTables_length {
+color: #1b1a1a !important;
+}
+.dataTables_info{
+color: #1b1a1a !important;
+}
+/*#tableVenta tbody tr:hover, #myTable tbody tr:hover td.sorting_1 {
+    
+    cursor: pointer
+}
+
+#tableVenta tbody tr.selected {
+    color: white;
+    font-weight:bold;
+    background-color: #78a5cc /*eb510d*/;
+}*/
+  
+  /*nav inicio  */ 
+ 
+
+
+
+/*nav fin*/
+/*.nav-filter {
+	background-color:#337AB7;
+	color: white !important;
+}
+
+.nav-pills>li>a:hover {
+	background-color: #FF6699;
+}
+.nav-pills .open>a, .nav-pills .open>a:active, .nav-pills .open>a:focus{
+	background-color: #FF6699;
+}*/
+
+.tool-tip {
+  display: inline-block;
+}
+.tool-tip [disabled] {
+  pointer-events: none;
+}
+
+
+/* tab color */
+.nav-tabs>li>a {
+  /*background-color: #333333;*/ 
+  border-color: #777777;
+  color:#fff;
+  height: 30px !important;
+}
+
+/* active tab color */
+.nav-tabs>li.active>a, .nav-tabs>li.active>a:hover, .nav-tabs>li.active>a:focus {
+  color: #fff;
+  background-color: #666;
+  border: 1px solid #888888;
+}
+
+/* hover tab color */
+.nav-tabs>li>a:hover {
+  border-color: #000000;
+  background-color: #111111;
+}
+
+
+
+/*
+.nav-tabs > li > a {
+  height: 30px !important;
+}
+.nav-tabs > li.active > a,
+.nav-tabs > li.active > a:focus,
+.nav-tabs > li.active > a:hover {
+  background-color: #337ab7 !important;
+  color: white !important;
+}
+.nav-tabs > li > a {
+  border: medium none !important;
+  background-color: #d9edf7 !important;
+}
+.nav-tabs > li > a:hover {
+  background-color: #337ab7 !important;
+  border: medium none !important;
+  /* border-radius: 0 !important; */
+ /* color: white;*/
+}
+*/</style><link rel="stylesheet" href="app.full.min.css"><script charset="utf-8" src="https://siteintercept.qualtrics.com/dxjsmodule/11.c331591598597e4e3e65.chunk.js?Q_CLIENTVERSION=2.40.0&amp;Q_CLIENTTYPE=web&amp;Q_BRANDID=www4.sii.cl"></script><script charset="utf-8" src="https://siteintercept.qualtrics.com/dxjsmodule/7.22a8f8e4f6c751d8767a.chunk.js?Q_CLIENTVERSION=2.40.0&amp;Q_CLIENTTYPE=web&amp;Q_BRANDID=www4.sii.cl"></script></head><body class="" style=""><nav id="my-menu" style="display:none;" class="mm-menu mm-offcanvas mm-hasnavbar-top-1 mm-hasnavbar-bottom-1"><div class="mm-navbar mm-navbar-bottom mm-navbar-bottom-1 mm-navbar-size-1 mm-navbar-content-2"><a data-target="#mm-0" href="http://homer.sii.cl/" class="mm-next mm-fullsubopen"><i class="fa fa-home" aria-hidden="true"></i> Inicio</a> <a href="#" id="closeMenu"><i class="fa fa-sign-out fa-flip-horizontal" aria-hidden="true"></i> Cerrar</a></div><div class="mm-navbar mm-navbar-top mm-navbar-top-1 mm-navbar-size-1"><div class="mm-search"><input placeholder="Buscar" type="text" autocomplete="off"></div></div><div class="mm-panels"><div class="mm-panel mm-hasnavbar mm-opened mm-current" id="mm-0"><div class="mm-navbar"><a class="mm-title">Menu</a></div><ul class="mm-listview">
+				  <li><a href="https://misiir.sii.cl/cgi_misii/siihome.cgi">Mi Sii</a></li>
+             <li><a class="mm-next mm-fullsubopen" href="#mm-1" data-target="#mm-1"></a><span>Servicios online</span>
+                  
+             </li>
+             <li><a href="https://www.sii.cl/ayudas/">Ayudas</a></li>
+             <li style="padding:0 2px;"><a href="https://www.sii.cl/buscador/buscador.html"><span class="glyphicon glyphicon-search" style="padding: 0;"></span></a></li>
+			</ul><div class="mm-noresultsmsg mm-hidden">No se encontraron resultados.</div></div><div class="mm-panel mm-hasnavbar mm-hidden" id="mm-1"><div class="mm-navbar"><a class="mm-btn mm-prev" href="#mm-0" data-target="#mm-0"></a><a class="mm-title" href="#mm-0
