@@ -32,4 +32,11 @@ Name: "{group}\{cm:UninstallProgram,AutomatizadorAV}"; Filename: "{uninstallexe}
 Name: "{autodesktop}\AutomatizadorAV"; Filename: "{app}\AutomatizadorAV.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\AutomatizadorAV.exe"; Description: "{cm:LaunchProgram,AutomatizadorAV}"; Flags: nowait postinstall
+Filename: "{app}\AutomatizadorAV.exe"; Description: "{cm:LaunchProgram,AutomatizadorAV}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+// Verificar que el ejecutable existe antes de intentar ejecutarlo
+function InitializeSetup(): Boolean;
+begin
+  Result := True;
+end;

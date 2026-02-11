@@ -3,6 +3,7 @@ Módulo para automatizar la aceptación de facturas en el SII - VERSION MEJORADA
 """
 import time
 import json
+import sys
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -16,6 +17,19 @@ import re
 import os
 import shutil
 from datetime import datetime, timedelta
+
+def get_project_root():
+    """Obtener el directorio raíz del proyecto (donde se guardan logs y reportes)"""
+    if getattr(sys, 'frozen', False):
+        # En modo ejecutable, el directorio raíz es donde está el .exe
+        return os.path.dirname(sys.executable)
+    else:
+        # En desarrollo, es el directorio de trabajo actual o el padre de src
+        cwd = os.getcwd()
+        # Si estamos ejecutando desde src/, subir un nivel
+        if os.path.basename(cwd) == 'src':
+            return os.path.dirname(cwd)
+        return cwd
 
 
 # ================= CONFIGURACIÓN ACTUALIZADA DEL SII =================
@@ -243,7 +257,8 @@ def validar_rut(rut_completo):
 def limpiar_screenshots_antiguos(dias=7):
     """Borrar archivos de depuración antiguos para ahorrar espacio"""
     try:
-        directorio = os.path.join(os.getcwd(), "logs", "screenshots")
+        project_root = get_project_root()
+        directorio = os.path.join(project_root, "logs", "screenshots")
         if not os.path.exists(directorio):
             return
 
@@ -268,8 +283,9 @@ def limpiar_screenshots_antiguos(dias=7):
 def guardar_screenshot(driver, nombre):
     """Guardar screenshot con timestamp en carpeta dedicada"""
     try:
+        project_root = get_project_root()
         # Asegurar que exista la carpeta
-        directorio = os.path.join(os.getcwd(), "logs", "screenshots")
+        directorio = os.path.join(project_root, "logs", "screenshots")
         if not os.path.exists(directorio):
             os.makedirs(directorio, exist_ok=True)
 
@@ -279,7 +295,8 @@ def guardar_screenshot(driver, nombre):
         
         driver.save_screenshot(ruta_completa)
         return ruta_completa
-    except:
+    except Exception as e:
+        print(f"⚠️ Error guardando screenshot: {str(e)}")
         return ""
 
 class SIIAutomatorWorker(QThread):

@@ -8,10 +8,23 @@ def get_base_path():
     """ Obtener la ruta base correcta, ya sea en desarrollo o en ejecutable congelado """
     if getattr(sys, 'frozen', False):
         # Si estamos en un ejecutable (PyInstaller)
+        # sys._MEIPASS apunta a la carpeta temporal donde PyInstaller extrae los archivos
         return sys._MEIPASS if hasattr(sys, "_MEIPASS") else os.path.dirname(sys.executable)
     else:
         # Si estamos en desarrollo
         return os.path.dirname(os.path.abspath(__file__))
+
+def get_resource_path(*relative_path):
+    """Obtener la ruta correcta de recursos, manejando tanto desarrollo como ejecutable"""
+    if getattr(sys, 'frozen', False):
+        # En modo ejecutable, los recursos están en _MEIPASS/src/...
+        base = sys._MEIPASS if hasattr(sys, "_MEIPASS") else os.path.dirname(sys.executable)
+        # Los datos se copian a src/ según el spec, así que necesitamos agregar 'src'
+        return os.path.join(base, "src", *relative_path)
+    else:
+        # En desarrollo, estamos en src/, así que la ruta es relativa
+        base = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(base, *relative_path)
 
 # ================= CONFIGURACIÓN DE IMPORTS =================
 # Obtener el directorio base
@@ -20,29 +33,46 @@ SCRIPT_DIR = get_base_path()
 if getattr(sys, 'frozen', False):
     # En modo ejecutable, la raíz del proyecto es donde está el .exe
     PROJECT_ROOT = os.path.dirname(sys.executable)
+    # En modo frozen, los módulos Python están en _MEIPASS/src/
+    SRC_DIR = os.path.join(SCRIPT_DIR, "src")
 else:
     # En desarrollo, es el padre de src
     PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+    SRC_DIR = SCRIPT_DIR
 
-# Agregar el directorio actual al PYTHONPATH
-sys.path.insert(0, SCRIPT_DIR)
+# Agregar el directorio src al PYTHONPATH para imports
+if getattr(sys, 'frozen', False):
+    sys.path.insert(0, SRC_DIR)
+else:
+    sys.path.insert(0, SCRIPT_DIR)
 
-# Verificar que core existe
-CORE_DIR = os.path.join(SCRIPT_DIR, "core")
+# Verificar que core existe usando get_resource_path
+CORE_DIR = get_resource_path("core")
 if not os.path.exists(CORE_DIR):
-    print(f"❌ ERROR: No existe la carpeta 'core' en {SCRIPT_DIR}")
-    print("Contenido de src/:")
-    for item in os.listdir(SCRIPT_DIR):
-        print(f"  - {item}")
+    error_msg = f"❌ ERROR: No existe la carpeta 'core' en {CORE_DIR}"
+    print(error_msg)
+    if getattr(sys, 'frozen', False):
+        # En modo frozen, intentar mostrar error en MessageBox si PyQt5 está disponible
+        try:
+            from PyQt5.QtWidgets import QApplication, QMessageBox
+            app = QApplication(sys.argv)
+            QMessageBox.critical(None, "Error de Inicio", error_msg + f"\n\nSCRIPT_DIR: {SCRIPT_DIR}\nSRC_DIR: {SRC_DIR}")
+        except:
+            pass
     sys.exit(1)
 
 # Verificar que sii_automator.py existe
 SII_FILE = os.path.join(CORE_DIR, "sii_automator.py")
 if not os.path.exists(SII_FILE):
-    print(f"❌ ERROR: No existe sii_automator.py en {CORE_DIR}")
-    print("Contenido de core/:")
-    for item in os.listdir(CORE_DIR):
-        print(f"  - {item}")
+    error_msg = f"❌ ERROR: No existe sii_automator.py en {CORE_DIR}"
+    print(error_msg)
+    if getattr(sys, 'frozen', False):
+        try:
+            from PyQt5.QtWidgets import QApplication, QMessageBox
+            app = QApplication(sys.argv)
+            QMessageBox.critical(None, "Error de Inicio", error_msg)
+        except:
+            pass
     sys.exit(1)
 
 # ================= PRIMERO IMPORTAR DEPENDENCIAS =================
@@ -153,7 +183,7 @@ class SIIAutomatorGUI(QMainWindow):
         # Logo
         self.logo_label = QLabel()
         self.logo_label.setAlignment(Qt.AlignCenter)
-        logo_path = os.path.join(SCRIPT_DIR, "assets", "logo.png")
+        logo_path = get_resource_path("assets", "logo.png")
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path)
             if pixmap.width() > 250:
@@ -703,16 +733,55 @@ class SIIAutomatorGUI(QMainWindow):
 
 def main():
     """Función principal"""
-    app = QApplication(sys.argv)
-    
-    # Establecer estilo de aplicación
-    app.setStyle('Fusion')
-    
-    # Crear y mostrar ventana principal
-    window = SIIAutomatorGUI()
-    window.show()
-    
-    sys.exit(app.exec_())
+    app = None
+    try:
+        # Asegurar que QApplication esté importado
+        from PyQt5.QtWidgets import QApplication as QtApp, QMessageBox
+        
+        # Crear aplicación si no existe
+        app = QtApp.instance()
+        if app is None:
+            app = QtApp(sys.argv)
+        
+        # Establecer estilo de aplicación
+        app.setStyle('Fusion')
+        
+        # Crear y mostrar ventana principal
+        window = SIIAutomatorGUI()
+        window.show()
+        
+        sys.exit(app.exec_())
+    except Exception as e:
+        # Manejo de errores para modo sin consola
+        error_msg = f"Error crítico al iniciar la aplicación:\n{str(e)}\n\n"
+        import traceback
+        error_msg += traceback.format_exc()
+        
+        # Intentar mostrar error en MessageBox
+        try:
+            # Importar aquí para evitar problemas de scope
+            from PyQt5.QtWidgets import QApplication as QtApp, QMessageBox
+            
+            # Crear aplicación si no existe
+            error_app = QtApp.instance()
+            if error_app is None:
+                error_app = QtApp(sys.argv)
+            
+            QMessageBox.critical(None, "Error Crítico", error_msg)
+            if error_app:
+                error_app.processEvents()
+        except Exception as msg_error:
+            # Si no se puede mostrar MessageBox, escribir a archivo de log
+            log_file = os.path.join(PROJECT_ROOT, "error_log.txt")
+            try:
+                with open(log_file, "w", encoding="utf-8") as f:
+                    f.write(error_msg)
+                    f.write(f"\n\nError al mostrar MessageBox: {str(msg_error)}")
+                # Intentar mostrar mensaje en consola si está disponible
+                print(f"Error guardado en: {log_file}")
+            except:
+                pass
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
