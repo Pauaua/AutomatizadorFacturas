@@ -32,7 +32,7 @@ Este proyecto es una herramienta de automatización avanzada diseñada para gest
 - **Google Chrome** (última versión estable)
 - **Tesseract OCR** (opcional, para funcionalidades de lectura de imágenes)
 
-## 📦 Instalación para Usuarios Finales
+## 📦 Instalación para Usuarios 
 
 ### Opción 1: Instalador (Recomendado)
 
@@ -100,27 +100,6 @@ Si deseas modificar o contribuir al proyecto:
    ```bash
    python src/main.py
    ```
-
-## 🏗️ Construcción del Ejecutable e Instalador
-
-El proyecto incluye scripts automatizados para generar el ejecutable y el instalador:
-
-### Generar Ejecutable
-
-```bash
-python build_exe.py
-```
-
-Esto generará:
-- Ejecutable en: `dist/AutomatizadorAV/AutomatizadorAV.exe`
-- Todas las dependencias en: `dist/AutomatizadorAV/_internal/`
-
-### Generar Instalador
-
-1. Asegúrate de tener **Inno Setup** instalado ([Descargar aquí](https://jrsoftware.org/isdl.php))
-2. Abre `installer/setup.iss` con Inno Setup Compiler
-3. Compila el instalador (Build > Compile)
-4. El instalador se generará en: `installer/setup_output/AutomatizadorAV_Installer.exe`
 
 ## 📂 Estructura del Proyecto
 
